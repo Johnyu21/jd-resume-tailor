@@ -1,0 +1,2911 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>通用简历编辑器 · 13 套模板自由切换</title>
+  <style>
+    :root {
+      --primary: #6f8579;
+      --primary-ribbon: #73857b;
+      --primary-dark: #4b5c53;
+      --bar-gray: #c4cdc8;
+      --line-color: #b7c0ba;
+      --text-main: #2b302d;
+      --text-strong: #1d221f;
+      --text-muted: #5a635e;
+      --page-w: 210mm;
+      --page-h: 297mm;
+      --timeline-x: 15.5mm;
+      --body-size: 9.5pt;
+      --body-lh: 1.60;
+      --sec-gap: 4.4mm;
+      --item-gap: 1.6mm;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #e5e8e6;
+      color: var(--text-main);
+      font-family: "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Helvetica Neue", Arial, sans-serif;
+      font-size: 10pt;
+      line-height: 1.64;
+    }
+
+    /* ===== 顶部固定两行工具栏 + 折叠三角拉手（打印时自动隐藏） ===== */
+    .toolbar-dock {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      transition: transform 0.22s ease;
+    }
+
+    .toolbar-dock.collapsed {
+      transform: translateY(-100%);
+    }
+
+    .toolbar {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px 18px;
+      background: #24302a;
+      color: #f2f5f3;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.22);
+      font-size: 13px;
+    }
+
+    .toolbar-row,
+    .toolbar-sub {
+      width: 100%;
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .toolbar-row::-webkit-scrollbar,
+    .toolbar-sub::-webkit-scrollbar {
+      display: none;
+    }
+
+    .toolbar-sub {
+      padding-top: 6px;
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .toolbar-left,
+    .toolbar-right,
+    .toolbar-group {
+      display: inline-flex;
+      flex-wrap: nowrap;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .toolbar-title {
+      font-weight: 600;
+      letter-spacing: 0.4px;
+      white-space: nowrap;
+    }
+
+    .toolbar-label {
+      font-size: 11.5px;
+      color: #b7c8be;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    .page-badge {
+      background: rgba(255, 255, 255, 0.14);
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .btn {
+      appearance: none;
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      padding: 5px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-family: inherit;
+      white-space: nowrap;
+      transition: background 0.15s ease, transform 0.1s ease;
+    }
+
+    .btn:hover { background: rgba(255, 255, 255, 0.2); }
+    .btn:active { transform: translateY(1px); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+
+    .btn-sm { padding: 3px 8px; font-size: 11.5px; }
+    .btn-sm.active-mode { background: var(--primary); border-color: #9ec0ae; font-weight: 600; }
+
+    .btn-save { background: #2f855a; border-color: #2f855a; font-weight: 600; }
+    .btn-save:hover { background: #276749; }
+
+    .btn-primary { background: #4c7c66; border-color: #6ea088; font-weight: 600; }
+    .btn-primary:hover { background: #3f6a56; }
+
+    .btn-danger { border-color: rgba(255, 145, 145, 0.45); color: #ffd5d5; }
+    .btn-danger:hover { background: rgba(220, 75, 75, 0.35); }
+
+    .tb-select {
+      appearance: auto;
+      background: rgba(255, 255, 255, 0.13);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.26);
+      border-radius: 6px;
+      padding: 2px 6px;
+      font-size: 12px;
+      font-family: inherit;
+      cursor: pointer;
+      height: 26px;
+    }
+
+    .tb-select.theme-select {
+      background: rgba(111, 133, 121, 0.38);
+      border-color: #8eb39f;
+      font-weight: 600;
+      height: 28px;
+      padding: 2px 8px;
+    }
+
+    .tb-select option,
+    .tb-select optgroup {
+      background: #24302a;
+      color: #ffffff;
+    }
+
+    .tb-color-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      border-radius: 5px;
+      padding: 1px 5px;
+      height: 24px;
+      cursor: pointer;
+      font-size: 11.5px;
+      color: #ffffff;
+    }
+
+    .tb-color-wrap input[type="color"] {
+      width: 16px;
+      height: 16px;
+      padding: 0;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .tb-divider {
+      width: 1px;
+      height: 16px;
+      background: rgba(255, 255, 255, 0.18);
+      margin: 0 2px;
+    }
+
+    .save-status {
+      font-size: 11.5px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      color: #cfe3d7;
+      white-space: nowrap;
+      max-width: 185px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .save-status.dirty { background: rgba(236, 179, 70, 0.22); color: #ffe299; }
+    .save-status.error { background: rgba(220, 75, 75, 0.3); color: #ffd5d5; }
+
+    .toolbar-toggle-tab {
+      position: absolute;
+      left: 50%;
+      top: 100%;
+      transform: translateX(-50%);
+      width: 54px;
+      height: 18px;
+      border: none;
+      border-radius: 0 0 8px 8px;
+      background: #24302a;
+      color: #dce6e0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.22);
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .toolbar-toggle-tab:hover { background: #3a4c43; color: #ffffff; }
+    .toolbar-toggle-tab .tri-icon { display: inline-block; font-size: 10px; line-height: 1; transition: transform 0.22s ease; }
+    .toolbar-dock.collapsed .toolbar-toggle-tab .tri-icon { transform: rotate(180deg); }
+
+    /* ===== 多页容器与基础 A4 结构（默认：灰绿丝带 sage-ribbon） ===== */
+    .pages-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+      padding: 108px 12px 48px;
+      transition: padding-top 0.22s ease;
+    }
+
+    body.toolbar-collapsed .pages-container {
+      padding-top: 26px;
+    }
+
+    .page {
+      position: relative;
+      width: var(--page-w);
+      min-height: var(--page-h);
+      height: var(--page-h);
+      background: #ffffff;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.14);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      counter-reset: sec-counter;
+    }
+
+    .resume-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9mm 14mm 5.5mm 16mm;
+      background: #ffffff;
+      flex-shrink: 0;
+    }
+
+    .resume-title {
+      font-size: 30pt;
+      font-weight: 400;
+      letter-spacing: 3px;
+      color: var(--primary);
+      line-height: 1.15;
+      margin: 0;
+    }
+
+    .header-icons {
+      display: flex;
+      align-items: center;
+      gap: 5.5mm;
+    }
+
+    .header-icon-circle {
+      width: 9mm;
+      height: 9mm;
+      border-radius: 50%;
+      background: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .header-icon-circle svg {
+      width: 5.2mm;
+      height: 5.2mm;
+      fill: #ffffff;
+    }
+
+    .bauhaus-dots {
+      display: none;
+      align-items: center;
+      gap: 3mm;
+    }
+
+    .bauhaus-dots span { display: inline-block; width: 4.5mm; height: 4.5mm; }
+    .bauhaus-dots .bd-r { background: #e63946; border-radius: 50%; }
+    .bauhaus-dots .bd-y { background: #f5b301; }
+    .bauhaus-dots .bd-b { background: #2563eb; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+
+    .top-accent-bar {
+      position: relative;
+      width: 100%;
+      height: 4.8mm;
+      background: var(--bar-gray);
+      flex-shrink: 0;
+    }
+
+    .top-accent-bar::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 44%;
+      background: var(--primary);
+      clip-path: polygon(0 0, 96% 0, 100% 100%, 0 100%);
+    }
+
+    .cont-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5.5mm 14mm 2.8mm 16mm;
+      font-size: 8.8pt;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .cont-header-left {
+      color: var(--primary);
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+
+    .top-accent-bar.slim { height: 3mm; }
+
+    .page-body {
+      position: relative;
+      flex: 1;
+      padding: 4.5mm 12.5mm 10mm 15.5mm;
+    }
+
+    .page-body::before {
+      content: "";
+      position: absolute;
+      left: var(--timeline-x);
+      top: 0;
+      bottom: 8mm;
+      width: 1px;
+      background: var(--line-color);
+    }
+
+    .section {
+      position: relative;
+      margin-bottom: var(--sec-gap);
+      border-radius: 4px;
+      counter-increment: sec-counter;
+    }
+
+    .section:last-child { margin-bottom: 0; }
+
+    .section-header {
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      margin-left: -3.2mm;
+      margin-bottom: 2.6mm;
+    }
+
+    .section-ribbon-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: stretch;
+      z-index: 2;
+    }
+
+    .section-ribbon-wrap::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: -2.1mm;
+      width: 3.2mm;
+      height: 2.1mm;
+      background: var(--primary-dark);
+      clip-path: polygon(0 0, 100% 0, 100% 100%);
+    }
+
+    .section-ribbon {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      height: 6.8mm;
+      padding: 0 7.5mm 0 5.5mm;
+      background: var(--primary-ribbon);
+      color: #ffffff;
+      font-size: 10.5pt;
+      font-weight: 500;
+      letter-spacing: 1.2px;
+      clip-path: polygon(0 0, calc(100% - 4.2mm) 0, 100% 100%, 0 100%);
+      white-space: nowrap;
+    }
+
+    .section-slashes {
+      display: inline-flex;
+      align-items: stretch;
+      margin-left: -2.2mm;
+      gap: 1.1mm;
+    }
+
+    .section-slashes span {
+      display: block;
+      width: 2.2mm;
+      height: 6.8mm;
+      background: var(--primary-ribbon);
+      clip-path: polygon(0 0, 38% 0, 100% 100%, 62% 100%);
+    }
+
+    .section-line {
+      flex: 1;
+      height: 1px;
+      background: var(--line-color);
+      margin-left: 1mm;
+    }
+
+    .section-content {
+      padding-left: 4.5mm;
+    }
+
+    /* 基本信息与照片 */
+    .info-grid-wrap {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 6mm;
+      padding-top: 1.2mm;
+    }
+
+    .info-grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1.18fr;
+      row-gap: 2.2mm;
+      column-gap: 6mm;
+      padding-top: 1mm;
+    }
+
+    .info-item {
+      position: relative;
+      display: flex;
+      align-items: baseline;
+      font-size: var(--body-size);
+      line-height: 1.45;
+      border-radius: 3px;
+      padding: 1px 2px;
+      transition: background 0.12s ease, box-shadow 0.12s ease;
+    }
+
+    .info-label {
+      font-weight: 700;
+      color: var(--text-strong);
+      white-space: nowrap;
+      min-width: 17.5mm;
+      display: inline-flex;
+      justify-content: space-between;
+    }
+
+    .info-colon { font-weight: 700; color: var(--text-strong); margin-right: 1.5mm; }
+    .info-val { color: var(--text-main); flex: 1; }
+
+    .photo-box {
+      position: relative;
+      width: 25.5mm;
+      height: 33mm;
+      border: 1px solid #d5dcd8;
+      background: #f5f7f6;
+      flex-shrink: 0;
+      overflow: hidden;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #829188;
+      font-size: 8.5pt;
+      text-align: center;
+      margin-top: -1mm;
+    }
+
+    .photo-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .photo-box:hover::after {
+      content: "点击更换照片";
+      position: absolute;
+      inset: 0;
+      background: rgba(36, 48, 42, 0.68);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8.5pt;
+    }
+    .photo-placeholder { padding: 4px; line-height: 1.45; }
+
+    /* 经历与条目 */
+    .entry {
+      position: relative;
+      margin-bottom: 3.2mm;
+      border-radius: 4px;
+      padding: 2px 3px;
+      margin-left: -3px;
+      margin-right: -3px;
+      transition: background 0.12s ease, box-shadow 0.12s ease;
+    }
+
+    .entry:last-child { margin-bottom: 0; }
+
+    .entry-head-3 {
+      display: grid;
+      grid-template-columns: 38mm 1fr auto;
+      align-items: baseline;
+      gap: 4mm;
+      font-weight: 700;
+      color: var(--text-strong);
+      font-size: calc(var(--body-size) + 0.5pt);
+      margin-bottom: 1.2mm;
+    }
+
+    .entry-head-3 .col-center { text-align: center; }
+    .entry-head-3 .col-right { text-align: right; }
+
+    .entry-head-inline {
+      font-weight: 700;
+      color: var(--text-strong);
+      font-size: calc(var(--body-size) + 0.5pt);
+      margin-bottom: 1.2mm;
+    }
+
+    .kv-line {
+      position: relative;
+      font-size: var(--body-size);
+      line-height: var(--body-lh);
+      margin: calc(var(--item-gap) * 0.6) 0;
+      border-radius: 3px;
+      transition: background 0.12s ease, box-shadow 0.12s ease;
+    }
+
+    .kv-line strong { color: var(--text-strong); font-weight: 700; }
+
+    .bullet-list { list-style: none; margin: 0; padding: 0; }
+
+    .bullet-list li {
+      position: relative;
+      padding-left: 4.2mm;
+      margin-bottom: var(--item-gap);
+      font-size: var(--body-size);
+      line-height: var(--body-lh);
+      text-align: justify;
+      border-radius: 3px;
+      transition: background 0.12s ease, box-shadow 0.12s ease;
+    }
+
+    .bullet-list li:last-child { margin-bottom: 0; }
+
+    .bullet-list li::before {
+      content: "●";
+      position: absolute;
+      left: 0;
+      top: 0.1mm;
+      font-size: 6.5pt;
+      color: var(--primary-dark);
+    }
+
+    .bullet-list li strong { color: var(--text-strong); font-weight: 700; }
+
+    .paragraph-text {
+      position: relative;
+      margin: 0;
+      font-size: var(--body-size);
+      line-height: calc(var(--body-lh) + 0.06);
+      text-align: justify;
+      border-radius: 3px;
+      transition: background 0.12s ease, box-shadow 0.12s ease;
+    }
+
+    .item-text { display: block; outline: none; }
+
+    .page-footer {
+      position: absolute;
+      right: 13mm;
+      bottom: 4.5mm;
+      font-size: 8.5pt;
+      color: #8b9690;
+    }
+
+    /* =====================================================================
+       12 套官方风格主题引擎（严格还原 vibe-resume-skill 设计语言，非简单换色）
+       ===================================================================== */
+
+    /* 共用：非丝带类模板清除丝带折角/斜线/左侧竖线，各自建立独立版式 */
+    body:not([data-theme="sage-ribbon"]) .page-body::before { display: none; }
+    body:not([data-theme="sage-ribbon"]) .header-icons { display: none; }
+    body:not([data-theme="sage-ribbon"]) .top-accent-bar { display: none; }
+    body:not([data-theme="sage-ribbon"]) .section-ribbon-wrap::after { display: none; }
+    body:not([data-theme="sage-ribbon"]) .section-slashes { display: none; }
+    body:not([data-theme="sage-ribbon"]) .section-header { margin-left: 0; }
+    body:not([data-theme="sage-ribbon"]) .section-content { padding-left: 0; }
+    body:not([data-theme="sage-ribbon"]) .section-ribbon {
+      clip-path: none;
+      background: transparent;
+      padding: 0;
+      height: auto;
+      letter-spacing: 0.5px;
+    }
+    body:not([data-theme="sage-ribbon"]) .photo-box { border: none; border-radius: 0; }
+
+    /* ----- 1. basic-a4：经典单栏（ATS 友好 · 蓝灰现代） ----- */
+    body[data-theme="basic-a4"] {
+      --primary: #2563eb;
+      --primary-dark: #1f2937;
+      --line-color: #d1d5db;
+      --text-main: #2f3743;
+      --text-strong: #111827;
+      --text-muted: #6f7684;
+    }
+    body[data-theme="basic-a4"] .resume-header {
+      padding: 9mm 11mm 3mm 11mm;
+      border-bottom: 2px solid #2563eb;
+      margin: 0 11mm;
+      padding-left: 0;
+      padding-right: 0;
+    }
+    body[data-theme="basic-a4"] .resume-title { font-size: 22pt; font-weight: 700; color: #1f2937; letter-spacing: 1px; }
+    body[data-theme="basic-a4"] .cont-header { padding: 6mm 11mm 2.5mm; border-bottom: 1px solid #e5e7eb; margin: 0 11mm; padding-left: 0; padding-right: 0; }
+    body[data-theme="basic-a4"] .page-body { padding: 4.5mm 11mm 10mm 11mm; }
+    body[data-theme="basic-a4"] .section-header { align-items: center; gap: 3mm; margin-bottom: 2.2mm; }
+    body[data-theme="basic-a4"] .section-ribbon { color: #2563eb; font-size: 11pt; font-weight: 700; }
+    body[data-theme="basic-a4"] .section-line { background: #c4c9d2; }
+    body[data-theme="basic-a4"] .bullet-list li::before { content: "•"; color: #2563eb; font-size: 9pt; top: -0.3mm; }
+
+    /* ----- 2. minimal-prose：克制留白（Stripe / Notion 极简） ----- */
+    body[data-theme="minimal-prose"] {
+      --primary: #111111;
+      --primary-dark: #111111;
+      --text-main: #333333;
+      --text-strong: #000000;
+      --text-muted: #6b7280;
+    }
+    body[data-theme="minimal-prose"] .resume-header { padding: 10mm 12mm 3mm 12mm; }
+    body[data-theme="minimal-prose"] .resume-title { font-size: 22pt; font-weight: 600; color: #000; letter-spacing: 0.5px; }
+    body[data-theme="minimal-prose"] .cont-header { padding: 6mm 12mm 2mm 12mm; color: #9ca3af; }
+    body[data-theme="minimal-prose"] .page-body { padding: 3.5mm 12mm 10mm 12mm; }
+    body[data-theme="minimal-prose"] .section-line { display: none; }
+    body[data-theme="minimal-prose"] .section-ribbon { color: #111111; font-size: 10.8pt; font-weight: 700; letter-spacing: 1px; }
+    body[data-theme="minimal-prose"] .bullet-list li::before { content: "–"; color: #6b7280; font-size: 9pt; }
+
+    /* ----- 3. corporate-classic：外企经典（纯黑白双线正式） ----- */
+    body[data-theme="corporate-classic"] {
+      --primary: #111111;
+      --primary-dark: #111111;
+      --line-color: #222222;
+      --text-main: #222222;
+      --text-strong: #000000;
+      --text-muted: #666666;
+    }
+    body[data-theme="corporate-classic"] .resume-header {
+      justify-content: center;
+      padding: 8.5mm 11mm 3.5mm 11mm;
+      border-bottom: 2px solid #111;
+      box-shadow: inset 0 -1px 0 0 #fff, inset 0 -2px 0 0 #777;
+      margin: 0 11mm;
+    }
+    body[data-theme="corporate-classic"] .resume-title { font-size: 20pt; font-weight: 700; color: #111; letter-spacing: 6px; }
+    body[data-theme="corporate-classic"] .cont-header { padding: 6mm 11mm 2mm; border-bottom: 1px solid #333; margin: 0 11mm; padding-left: 0; padding-right: 0; }
+    body[data-theme="corporate-classic"] .page-body { padding: 4.5mm 11mm 10mm 11mm; }
+    body[data-theme="corporate-classic"] .section-header { border-bottom: 1.2px solid #111; padding-bottom: 1mm; margin-bottom: 2.2mm; }
+    body[data-theme="corporate-classic"] .section-ribbon { color: #000; font-size: 10.8pt; font-weight: 700; letter-spacing: 1.5px; }
+    body[data-theme="corporate-classic"] .section-line { display: none; }
+    body[data-theme="corporate-classic"] .bullet-list li::before { content: "▪"; color: #111; font-size: 7pt; }
+
+    /* ----- 4. gov-red：党政红头（宋体 · 国企/事业单位） ----- */
+    body[data-theme="gov-red"] {
+      --primary: #c41e3a;
+      --primary-dark: #9e172e;
+      --line-color: #c41e3a;
+      --text-main: #222222;
+      --text-strong: #1a1a1a;
+      --text-muted: #666666;
+      font-family: "STSong", "SimSun", "NSimSun", "Songti SC", "Microsoft YaHei", serif;
+    }
+    body[data-theme="gov-red"] .resume-header {
+      justify-content: center;
+      padding: 8.5mm 12mm 3.5mm;
+      margin: 0 11mm;
+      border-bottom: 2.5px solid #c41e3a;
+      position: relative;
+    }
+    body[data-theme="gov-red"] .resume-header::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: -4.5px;
+      height: 1px;
+      background: #c41e3a;
+    }
+    body[data-theme="gov-red"] .resume-title { font-size: 24pt; font-weight: 700; color: #c41e3a; letter-spacing: 10px; }
+    body[data-theme="gov-red"] .cont-header { padding: 6mm 11mm 2mm; margin: 0 11mm; padding-left: 0; padding-right: 0; border-bottom: 1.5px solid #c41e3a; }
+    body[data-theme="gov-red"] .cont-header-left { color: #c41e3a; }
+    body[data-theme="gov-red"] .page-body { padding: 5.5mm 11mm 10mm 11mm; }
+    body[data-theme="gov-red"] .section-header { border-bottom: 1.2px solid #c41e3a; padding-bottom: 1mm; margin-bottom: 2.4mm; }
+    body[data-theme="gov-red"] .section-ribbon { color: #c41e3a; font-size: 11.5pt; font-weight: 700; letter-spacing: 2px; }
+    body[data-theme="gov-red"] .section-line { display: none; }
+    body[data-theme="gov-red"] .bullet-list li::before { content: "▪"; color: #c41e3a; font-size: 7pt; }
+
+    /* ----- 5. folio-ledger：年报档案（深绿书脊 + 编号索引） ----- */
+    body[data-theme="folio-ledger"] {
+      --primary: #164b3b;
+      --primary-dark: #164b3b;
+      --line-color: #d9dfdc;
+      --text-main: #24302b;
+      --text-strong: #16211d;
+      --text-muted: #5a6a64;
+    }
+    body[data-theme="folio-ledger"] .page {
+      background: linear-gradient(to right, #164b3b 0, #164b3b 9.5mm, #d38a31 9.5mm, #d38a31 10.3mm, #ffffff 10.3mm);
+    }
+    body[data-theme="folio-ledger"] .resume-header {
+      background: transparent;
+      padding: 8.5mm 11mm 3mm 16mm;
+      border-bottom: 1.5px solid #164b3b;
+      margin-left: 14mm;
+      margin-right: 10mm;
+      padding-left: 0;
+      padding-right: 0;
+    }
+    body[data-theme="folio-ledger"] .resume-title { font-size: 22pt; font-weight: 700; color: #16211d; letter-spacing: 2px; }
+    body[data-theme="folio-ledger"] .cont-header { padding: 6mm 10mm 2mm 14mm; border-bottom: 1px solid #d9dfdc; }
+    body[data-theme="folio-ledger"] .page-body { padding: 4.5mm 10mm 10mm 14mm; }
+    body[data-theme="folio-ledger"] .section {
+      display: grid;
+      grid-template-columns: 24mm 1fr;
+      column-gap: 4mm;
+      border-top: 1px solid #e2e8e5;
+      padding-top: 2.5mm;
+    }
+    body[data-theme="folio-ledger"] .section:first-child { border-top: none; padding-top: 0; }
+    body[data-theme="folio-ledger"] .section-header { flex-direction: column; align-items: flex-start; margin-bottom: 0; }
+    body[data-theme="folio-ledger"] .section-ribbon-wrap { flex-direction: column; }
+    body[data-theme="folio-ledger"] .section-ribbon::before {
+      content: "0" counter(sec-counter);
+      display: block;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 13pt;
+      font-weight: 700;
+      color: #d38a31;
+      margin-bottom: 0.6mm;
+    }
+    body[data-theme="folio-ledger"] .section-ribbon {
+      flex-direction: column;
+      align-items: flex-start;
+      color: #164b3b;
+      font-size: 9.8pt;
+      font-weight: 700;
+    }
+    body[data-theme="folio-ledger"] .section-line { display: none; }
+    body[data-theme="folio-ledger"] .bullet-list li::before { content: "■"; color: #164b3b; font-size: 5.5pt; top: 0.4mm; }
+
+    /* ----- 6. sidebar-compact：深色侧栏（高辨识度藏蓝） ----- */
+    body[data-theme="sidebar-compact"] {
+      --primary: #1e40af;
+      --primary-dark: #1a1f2e;
+      --line-color: #cbd5e1;
+      --text-main: #334155;
+      --text-strong: #0f172a;
+      --text-muted: #64748b;
+    }
+    body[data-theme="sidebar-compact"] .page {
+      background: linear-gradient(to right, #1a1f2e 0, #1a1f2e 8mm, #ffffff 8mm);
+    }
+    body[data-theme="sidebar-compact"] .resume-header {
+      background: #1a1f2e;
+      padding: 7.5mm 12mm 6.5mm 14mm;
+      border-bottom: 3px solid #3b82f6;
+    }
+    body[data-theme="sidebar-compact"] .resume-title { color: #ffffff; font-size: 22pt; font-weight: 600; letter-spacing: 3px; }
+    body[data-theme="sidebar-compact"] .cont-header { background: #1a1f2e; color: #cbd5e1; padding: 4.5mm 12mm 4.5mm 14mm; border-bottom: 2px solid #3b82f6; }
+    body[data-theme="sidebar-compact"] .cont-header-left { color: #93c5fd; }
+    body[data-theme="sidebar-compact"] .page-body { padding: 5mm 10mm 10mm 13mm; }
+    body[data-theme="sidebar-compact"] .section-header { align-items: center; gap: 3mm; margin-bottom: 2.2mm; }
+    body[data-theme="sidebar-compact"] .section-ribbon {
+      background: #1a1f2e;
+      color: #ffffff;
+      padding: 1mm 3.5mm;
+      border-radius: 3px;
+      font-size: 10pt;
+      font-weight: 600;
+    }
+    body[data-theme="sidebar-compact"] .section-line { background: #cbd5e1; }
+    body[data-theme="sidebar-compact"] .bullet-list li::before { content: "▸"; color: #1e40af; font-size: 9pt; }
+
+    /* ----- 7. timeline-grid：时间轴叙事（竖线圆点节点） ----- */
+    body[data-theme="timeline-grid"] {
+      --primary: #2563eb;
+      --primary-dark: #1f2937;
+      --line-color: #d1d5db;
+      --text-main: #374151;
+      --text-strong: #111827;
+      --text-muted: #6b7280;
+    }
+    body[data-theme="timeline-grid"] .resume-header {
+      background: #f8fafc;
+      border-bottom: 1.5px solid #e2e8f0;
+      padding: 8mm 12mm 5mm;
+    }
+    body[data-theme="timeline-grid"] .resume-title { font-size: 22pt; font-weight: 700; color: #1f2937; }
+    body[data-theme="timeline-grid"] .cont-header { background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 4.5mm 12mm; }
+    body[data-theme="timeline-grid"] .page-body { padding: 5mm 11mm 10mm 16mm; }
+    body[data-theme="timeline-grid"] .page-body::before {
+      display: block;
+      left: 11.5mm;
+      top: 5mm;
+      bottom: 8mm;
+      width: 1.5px;
+      background: #cbd5e1;
+    }
+    body[data-theme="timeline-grid"] .section-header { align-items: center; gap: 3mm; margin-bottom: 2.2mm; }
+    body[data-theme="timeline-grid"] .section-header::before {
+      content: "";
+      position: absolute;
+      left: -5.9mm;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3mm;
+      height: 3mm;
+      border-radius: 50%;
+      background: #2563eb;
+      border: 2px solid #ffffff;
+      box-shadow: 0 0 0 1.5px #2563eb;
+    }
+    body[data-theme="timeline-grid"] .section-ribbon { color: #1f2937; font-size: 10.8pt; font-weight: 700; }
+    body[data-theme="timeline-grid"] .section-line { background: #e5e7eb; }
+    body[data-theme="timeline-grid"] .bullet-list li::before { content: "◦"; color: #2563eb; font-size: 10pt; font-weight: 700; top: -0.6mm; }
+
+    /* ----- 8. editorial：杂志双栏（字重对比 · 高级黑白） ----- */
+    body[data-theme="editorial"] {
+      --primary: #111111;
+      --primary-dark: #111111;
+      --line-color: #e5e5e5;
+      --text-main: #333333;
+      --text-strong: #111111;
+      --text-muted: #6b7280;
+    }
+    body[data-theme="editorial"] .resume-header {
+      padding: 9mm 11mm 4mm;
+      margin: 0 11mm;
+      padding-left: 0;
+      padding-right: 0;
+      border-top: 4px solid #111;
+      border-bottom: 1px solid #111;
+      margin-top: 6mm;
+    }
+    body[data-theme="editorial"] .resume-title { font-size: 24pt; font-weight: 800; color: #111; letter-spacing: 2px; }
+    body[data-theme="editorial"] .cont-header { padding: 5.5mm 11mm 2mm; border-bottom: 1px solid #ddd; margin: 0 11mm; padding-left: 0; padding-right: 0; }
+    body[data-theme="editorial"] .page-body { padding: 4.5mm 11mm 10mm 11mm; }
+    body[data-theme="editorial"] .section-header {
+      border-left: 3.5px solid #111;
+      padding-left: 3mm;
+      align-items: center;
+      gap: 3mm;
+      margin-bottom: 2.4mm;
+    }
+    body[data-theme="editorial"] .section-ribbon { color: #111; font-size: 11pt; font-weight: 800; letter-spacing: 1.5px; }
+    body[data-theme="editorial"] .section-line { background: #e5e5e5; }
+    body[data-theme="editorial"] .bullet-list li::before { content: "—"; color: #111; font-size: 8pt; }
+
+    /* ----- 9. swiss-neue：瑞士主义（隐形网格 · 唯一红点缀） ----- */
+    body[data-theme="swiss-neue"] {
+      --primary: #c0392b;
+      --primary-dark: #111111;
+      --line-color: #e2e2e2;
+      --text-main: #333333;
+      --text-strong: #111111;
+      --text-muted: #777777;
+      font-family: "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    body[data-theme="swiss-neue"] .resume-header { padding: 9.5mm 11mm 3.5mm 37mm; }
+    body[data-theme="swiss-neue"] .resume-title { font-size: 26pt; font-weight: 300; color: #c0392b; letter-spacing: 2px; }
+    body[data-theme="swiss-neue"] .cont-header { padding: 6mm 11mm 2mm 37mm; color: #999; }
+    body[data-theme="swiss-neue"] .cont-header-left { color: #c0392b; font-weight: 400; }
+    body[data-theme="swiss-neue"] .page-body { padding: 4mm 11mm 10mm 11mm; }
+    body[data-theme="swiss-neue"] .section {
+      display: grid;
+      grid-template-columns: 22mm 1fr;
+      column-gap: 4mm;
+      align-items: start;
+    }
+    body[data-theme="swiss-neue"] .section-header { justify-content: flex-end; margin-bottom: 0; padding-top: 0.6mm; }
+    body[data-theme="swiss-neue"] .section-ribbon { color: #888888; font-size: 9pt; font-weight: 500; text-align: right; letter-spacing: 0.5px; }
+    body[data-theme="swiss-neue"] .section-line { display: none; }
+    body[data-theme="swiss-neue"] .bullet-list li::before { content: "·"; color: #c0392b; font-size: 12pt; font-weight: 700; top: -1.4mm; }
+
+    /* ----- 10. bauhaus：包豪斯几何（红黄蓝三原色点缀） ----- */
+    body[data-theme="bauhaus"] {
+      --primary: #1a1a1a;
+      --primary-dark: #1a1a1a;
+      --line-color: #1a1a1a;
+      --text-main: #2a2a2a;
+      --text-strong: #111111;
+      --text-muted: #666666;
+    }
+    body[data-theme="bauhaus"] .bauhaus-dots { display: flex; }
+    body[data-theme="bauhaus"] .resume-header {
+      padding: 8mm 11mm 4mm;
+      border-bottom: 3px solid #1a1a1a;
+      margin: 0 11mm;
+      padding-left: 0;
+      padding-right: 0;
+    }
+    body[data-theme="bauhaus"] .resume-title { font-size: 24pt; font-weight: 800; color: #1a1a1a; letter-spacing: 2px; }
+    body[data-theme="bauhaus"] .cont-header { padding: 5.5mm 11mm 2mm; border-bottom: 2px solid #1a1a1a; margin: 0 11mm; padding-left: 0; padding-right: 0; }
+    body[data-theme="bauhaus"] .page-body { padding: 4.5mm 11mm 10mm 11mm; }
+    body[data-theme="bauhaus"] .section-header { align-items: center; gap: 3mm; margin-bottom: 2.2mm; }
+    body[data-theme="bauhaus"] .section-ribbon::before {
+      content: "";
+      display: inline-block;
+      width: 3.2mm;
+      height: 3.2mm;
+      margin-right: 2mm;
+      background: #e63946;
+    }
+    body[data-theme="bauhaus"] .section:nth-of-type(3n+2) .section-ribbon::before { background: #2563eb; border-radius: 50%; }
+    body[data-theme="bauhaus"] .section:nth-of-type(3n+3) .section-ribbon::before { background: #f5b301; }
+    body[data-theme="bauhaus"] .section-ribbon { color: #1a1a1a; font-size: 11pt; font-weight: 800; }
+    body[data-theme="bauhaus"] .section-line { height: 1.5px; background: #e0e0e0; }
+    body[data-theme="bauhaus"] .bullet-list li::before { content: "■"; color: #2563eb; font-size: 5.5pt; top: 0.4mm; }
+
+    /* ----- 11. code-poetry：源代码隐喻（极客风） ----- */
+    body[data-theme="code-poetry"] {
+      --primary: #569cd6;
+      --primary-dark: #c586c0;
+      --line-color: #e5e7eb;
+      --text-main: #2d333b;
+      --text-strong: #111827;
+      --text-muted: #6a9955;
+      font-family: "JetBrains Mono", "Consolas", "Menlo", "Microsoft YaHei", monospace;
+    }
+    body[data-theme="code-poetry"] .page {
+      background: linear-gradient(to right, #f3f4f6 0, #f3f4f6 10mm, #e5e7eb 10mm, #e5e7eb 10.3mm, #ffffff 10.3mm);
+    }
+    body[data-theme="code-poetry"] .resume-header { background: transparent; padding: 8mm 11mm 3mm 15mm; }
+    body[data-theme="code-poetry"] .resume-title { font-size: 20pt; font-weight: 700; color: #6a9955; letter-spacing: 0.5px; }
+    body[data-theme="code-poetry"] .resume-title::before { content: "/* "; color: #9ca3af; }
+    body[data-theme="code-poetry"] .resume-title::after { content: " */"; color: #9ca3af; }
+    body[data-theme="code-poetry"] .cont-header { padding: 5.5mm 11mm 2mm 15mm; color: #6a9955; }
+    body[data-theme="code-poetry"] .page-body { padding: 3.5mm 10mm 10mm 15mm; }
+    body[data-theme="code-poetry"] .section-header { align-items: center; gap: 2.5mm; margin-bottom: 2mm; }
+    body[data-theme="code-poetry"] .section-ribbon::before { content: "// "; color: #6a9955; font-weight: 700; }
+    body[data-theme="code-poetry"] .section-ribbon { color: #2563eb; font-size: 10.5pt; font-weight: 700; }
+    body[data-theme="code-poetry"] .section-line { background: #e5e7eb; }
+    body[data-theme="code-poetry"] .bullet-list li::before { content: ">"; color: #b45309; font-weight: 700; font-size: 8.5pt; }
+
+    /* ----- 12. mono-raw：Brutalist 等宽（纯黑虚线） ----- */
+    body[data-theme="mono-raw"] {
+      --primary: #000000;
+      --primary-dark: #000000;
+      --line-color: #222222;
+      --text-main: #222222;
+      --text-strong: #000000;
+      --text-muted: #777777;
+      font-family: "Consolas", "Menlo", "SF Mono", "Microsoft YaHei", monospace;
+    }
+    body[data-theme="mono-raw"] .resume-header {
+      padding: 8mm 11mm 3.5mm;
+      margin: 0 11mm;
+      padding-left: 0;
+      padding-right: 0;
+      border-bottom: 2px solid #000;
+    }
+    body[data-theme="mono-raw"] .resume-title { font-size: 20pt; font-weight: 700; color: #000; letter-spacing: 2px; }
+    body[data-theme="mono-raw"] .cont-header { padding: 5.5mm 11mm 2mm; margin: 0 11mm; padding-left: 0; padding-right: 0; border-bottom: 1px dashed #333; }
+    body[data-theme="mono-raw"] .page-body { padding: 4.5mm 11mm 10mm 11mm; }
+    body[data-theme="mono-raw"] .section-header { align-items: center; gap: 3mm; margin-bottom: 2mm; }
+    body[data-theme="mono-raw"] .section-ribbon::before { content: "[ "; }
+    body[data-theme="mono-raw"] .section-ribbon::after { content: " ]"; }
+    body[data-theme="mono-raw"] .section-ribbon { color: #000; font-size: 10.2pt; font-weight: 700; }
+    body[data-theme="mono-raw"] .section-line { height: 0; border-top: 1px dashed #888; background: none; }
+    body[data-theme="mono-raw"] .bullet-list li::before { content: "-"; color: #000; font-weight: 700; font-size: 9pt; }
+
+    /* ===== 可编辑高亮与三层清晰工具条（仅屏幕显示，打印 100% 隐藏） ===== */
+    [contenteditable="true"]:hover {
+      outline: 1px dashed rgba(111, 133, 121, 0.45);
+      outline-offset: 1px;
+    }
+
+    [contenteditable="true"]:focus {
+      outline: 1.5px solid var(--primary);
+      outline-offset: 1px;
+      background: rgba(111, 133, 121, 0.06);
+      border-radius: 2px;
+    }
+
+    .section:hover { box-shadow: inset 2px 0 0 0 rgba(75, 92, 83, 0.28); }
+
+    .section-tools {
+      position: absolute;
+      right: 0;
+      top: -0.5mm;
+      display: none;
+      align-items: center;
+      gap: 4px;
+      z-index: 25;
+      background: #3a4a42;
+      padding: 2px 6px;
+      border-radius: 5px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16);
+    }
+
+    .section:hover > .section-tools { display: flex; }
+    .tools-tag { font-size: 10.5px; font-weight: 600; padding: 0 4px 0 2px; user-select: none; white-space: nowrap; }
+    .section-tools .tools-tag { color: #d7e6dd; }
+
+    .section-tools .mini-btn {
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      background: rgba(255, 255, 255, 0.12);
+      color: #ffffff;
+      font-size: 11px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      cursor: pointer;
+      line-height: 1.45;
+    }
+
+    .section-tools .mini-btn:hover { background: rgba(255, 255, 255, 0.26); }
+    .section-tools .mini-btn.del { border-color: rgba(255, 175, 175, 0.45); color: #ffd6d6; }
+    .section-tools .mini-btn.del:hover { background: rgba(210, 68, 68, 0.55); color: #ffffff; }
+    .section-tools .drag-handle { color: #ffffff; }
+
+    .mini-btn {
+      border: 1px solid #c4cdc8;
+      background: #ffffff;
+      color: #4b5c53;
+      font-size: 11px;
+      padding: 1px 7px;
+      border-radius: 4px;
+      cursor: pointer;
+      line-height: 1.5;
+    }
+
+    .mini-btn:hover { background: #eef3f0; }
+    .mini-btn.del { color: #b44343; border-color: #e6c5c5; }
+    .mini-btn.add-btn { color: #1f6f4a; border-color: #9fd0b7; background: #f0faf4; font-weight: 600; }
+    .mini-btn.add-btn:hover { background: #dcf2e5; }
+
+    .page-actions {
+      position: absolute;
+      left: 20mm;
+      bottom: 3.5mm;
+      display: flex;
+      gap: 6px;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+
+    .page:hover .page-actions { opacity: 1; }
+
+    .entry:hover {
+      box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.48);
+      background: rgba(59, 130, 246, 0.025);
+    }
+
+    .entry-tools {
+      position: absolute;
+      left: 0;
+      top: 100%;
+      padding-top: 2px;
+      display: none;
+      align-items: center;
+      z-index: 22;
+    }
+
+    .entry:hover > .entry-tools { display: flex; }
+
+    .entry-tools-inner {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #eef5ff;
+      border: 1px solid #93c5fd;
+      padding: 2px 6px;
+      border-radius: 5px;
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.14);
+    }
+
+    .entry-tools-inner .tools-tag { color: #1d4ed8; }
+    .entry-tools-inner .mini-btn { padding: 0 6px; font-size: 11px; line-height: 1.48; border-color: #bfdbfe; color: #1e40af; }
+    .entry-tools-inner .mini-btn:hover { background: #dbeafe; }
+    .entry-tools-inner .mini-btn.add-btn { background: #2563eb; border-color: #2563eb; color: #ffffff; }
+    .entry-tools-inner .mini-btn.add-btn:hover { background: #1d4ed8; }
+    .entry-tools-inner .mini-btn.del { color: #b91c1c; border-color: #fecaca; background: #ffffff; }
+
+    .bullet-list li:hover,
+    .kv-line:hover,
+    .paragraph-text:hover {
+      background: rgba(47, 133, 90, 0.06);
+      box-shadow: 0 0 0 1px rgba(47, 133, 90, 0.42);
+    }
+
+    .item-tools {
+      position: absolute;
+      right: 2px;
+      top: -12px;
+      display: none;
+      align-items: center;
+      gap: 3px;
+      z-index: 26;
+      background: #ffffff;
+      border: 1px solid #9fd0b7;
+      padding: 1px 3px;
+      border-radius: 4px;
+      box-shadow: 0 1px 5px rgba(0, 0, 0, 0.14);
+    }
+
+    .bullet-list li:hover > .item-tools,
+    .kv-line:hover > .item-tools,
+    .paragraph-text:hover > .item-tools { display: flex; }
+    .item-tools .mini-btn { padding: 0 5px; font-size: 11px; line-height: 1.45; }
+
+    .info-item:hover { background: rgba(47, 133, 90, 0.06); box-shadow: 0 0 0 1px rgba(47, 133, 90, 0.35); }
+    .info-item-tools {
+      position: absolute;
+      right: 0;
+      top: -12px;
+      display: none;
+      align-items: center;
+      gap: 2px;
+      z-index: 25;
+      background: #ffffff;
+      border: 1px solid #9fd0b7;
+      padding: 0 2px;
+      border-radius: 4px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+    }
+    .info-item:hover > .info-item-tools { display: flex; }
+    .info-item-tools .mini-btn { padding: 0 4px; font-size: 10.5px; line-height: 1.4; }
+
+    .drag-handle { cursor: grab !important; user-select: none; color: #4b5c53; letter-spacing: -1px; }
+    .drag-handle:active { cursor: grabbing !important; }
+    .is-dragging { opacity: 0.38 !important; background: rgba(111, 133, 121, 0.12) !important; }
+    .drop-before { box-shadow: 0 -2.5px 0 0 #2f855a !important; }
+    .drop-after { box-shadow: 0 2.5px 0 0 #2f855a !important; }
+    .drop-into { outline: 2px dashed #2f855a !important; outline-offset: 2px; background: rgba(47, 133, 90, 0.05) !important; }
+
+    /* ===== 打印 / 导出 PDF 样式 ===== */
+    @page { size: A4 portrait; margin: 0; }
+
+    @media print {
+      html, body { background: #ffffff !important; }
+
+      .toolbar-dock,
+      .toolbar,
+      .section-tools,
+      .entry-tools,
+      .item-tools,
+      .info-item-tools,
+      .page-actions,
+      .photo-box:hover::after { display: none !important; }
+
+      .section,
+      .bullet-list li,
+      .kv-line,
+      .entry,
+      .paragraph-text,
+      .info-item {
+        background: transparent !important;
+        box-shadow: none !important;
+        outline: none !important;
+      }
+
+      .pages-container,
+      body.toolbar-collapsed .pages-container {
+        gap: 0;
+        padding: 0 !important;
+      }
+
+      .page {
+        box-shadow: none;
+        margin: 0;
+        page-break-after: always;
+        break-after: page;
+      }
+
+      .page:last-child {
+        page-break-after: auto;
+        break-after: auto;
+      }
+
+      [contenteditable="true"]:hover,
+      [contenteditable="true"]:focus {
+        outline: none !important;
+        background: transparent !important;
+      }
+    }
+  </style>
+  <link rel="stylesheet" href="/ai-tailor.css" />
+</head>
+<body data-theme="sage-ribbon">
+  <!-- 顶部固定两行工具栏 + 折叠三角拉手 -->
+  <div class="toolbar-dock" id="toolbarDock">
+    <div class="toolbar">
+      <div class="toolbar-row">
+        <div class="toolbar-left">
+          <span class="toolbar-title">通用简历编辑器</span>
+          <select class="tb-select theme-select" id="themeSelector" title="一键切换 13 套简历模板（保留全部已填内容）">
+            <optgroup label="实用投递系（9 套）">
+              <option value="sage-ribbon">灰绿丝带 · 经典复刻（默认）</option>
+              <option value="basic-a4">经典单栏 · basic-a4（ATS友好）</option>
+              <option value="minimal-prose">克制留白 · minimal-prose</option>
+              <option value="corporate-classic">外企经典 · corporate-classic</option>
+              <option value="gov-red">党政红头 · gov-red（国企/事业编）</option>
+              <option value="folio-ledger">年报档案 · folio-ledger（编号索引）</option>
+              <option value="sidebar-compact">深色侧栏 · sidebar-compact</option>
+              <option value="timeline-grid">时间轴 · timeline-grid</option>
+              <option value="editorial">杂志双栏 · editorial</option>
+            </optgroup>
+            <optgroup label="个性设计系（4 套）">
+              <option value="swiss-neue">瑞士主义 · swiss-neue（隐形网格）</option>
+              <option value="bauhaus">包豪斯几何 · bauhaus（三原色）</option>
+              <option value="code-poetry">源代码风 · code-poetry（极客）</option>
+              <option value="mono-raw">Brutalist 等宽 · mono-raw</option>
+            </optgroup>
+          </select>
+          <span class="page-badge" id="pageCountBadge">当前：2 页</span>
+          <button class="btn" id="btnUndo" title="撤回上一步（Ctrl + Z）" disabled>↶ 撤回</button>
+          <button class="btn" id="btnRedo" title="重做（Ctrl + Y / Ctrl + Shift + Z）" disabled>↷ 重做</button>
+          <div class="tb-dropdown" data-dropdown="page-more">
+            <button type="button" class="btn tb-dropdown-trigger">页面 / 更多 ▾</button>
+            <div class="tb-dropdown-menu">
+              <button type="button" class="tb-dropdown-item" id="btnAddPage" title="在末尾新增一页 A4">＋ 新增一页 A4</button>
+              <button type="button" class="tb-dropdown-item danger" id="btnRemovePage" title="删除最后一页">－ 删除最后一页</button>
+              <div class="tb-dropdown-sep"></div>
+              <button type="button" class="tb-dropdown-item" id="btnReset">↺ 恢复默认示例</button>
+            </div>
+          </div>
+        </div>
+        <div class="toolbar-right">
+          <span class="save-status" id="saveStatus">已就绪</span>
+          <button class="btn btn-ai" id="btnAiTailor" title="打开 AI 岗位定制、项目素材库与历史档案">✨ AI 岗位定制 <span class="inbox-badge" id="aiInboxBadge" style="display:none">0</span></button>
+          <div class="tb-dropdown" data-dropdown="export-save">
+            <button type="button" class="btn btn-primary tb-dropdown-trigger">导出 / 保存 ▾</button>
+            <div class="tb-dropdown-menu align-right">
+              <button type="button" class="tb-dropdown-item strong" id="btnPrint">🖨️ 导出 / 打印 PDF</button>
+              <button type="button" class="tb-dropdown-item" id="btnExportPng" title="导出高清 PNG 长图（方便 BOSS 直聘直接发图）">🖼️ 导出高清 PNG 长图</button>
+              <div class="tb-dropdown-sep"></div>
+              <button type="button" class="tb-dropdown-item" id="btnSaveHtml" title="保存当前内容到本地 HTML 文件（快捷键 Ctrl + S）">💾 保存本地 HTML (Ctrl+S)</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="toolbar-sub">
+        <div class="toolbar-group">
+          <span class="toolbar-label">选中文字：</span>
+          <select class="tb-select" id="selFontFamily" title="修改选中文字的字体">
+            <option value="">字体</option>
+            <option value="'Microsoft YaHei', sans-serif">微软雅黑</option>
+            <option value="'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif">苹方 / 黑体</option>
+            <option value="'SimSun', 'STSong', 'Songti SC', serif">宋体</option>
+            <option value="'KaiTi', 'STKaiti', 'Kaiti SC', serif">楷体</option>
+            <option value="'SimHei', 'Heiti SC', sans-serif">黑体</option>
+            <option value="'Consolas', 'Courier New', monospace">等宽代码</option>
+          </select>
+          <select class="tb-select" id="selFontSize" title="单独修改选中文字的字号">
+            <option value="">选区字号</option>
+            <option value="8pt">8pt</option>
+            <option value="8.5pt">8.5pt</option>
+            <option value="9pt">9pt</option>
+            <option value="9.5pt">9.5pt</option>
+            <option value="10pt">10pt</option>
+            <option value="10.5pt">10.5pt</option>
+            <option value="11pt">11pt</option>
+            <option value="12pt">12pt</option>
+            <option value="14pt">14pt</option>
+            <option value="16pt">16pt</option>
+            <option value="18pt">18pt</option>
+            <option value="22pt">22pt</option>
+            <option value="28pt">28pt</option>
+          </select>
+          <label class="tb-color-wrap" title="修改选中文字颜色">
+            <span>A</span>
+            <input type="color" id="selFontColor" value="#6f8579" />
+          </label>
+          <button class="btn btn-sm" data-fmt="bold" title="加粗选中文字（Ctrl + B）"><b>B</b></button>
+          <button class="btn btn-sm" data-fmt="italic" title="斜体选中文字（Ctrl + I）"><i>I</i></button>
+          <button class="btn btn-sm" data-fmt="underline" title="下划线（Ctrl + U）"><u>U</u></button>
+          <button class="btn btn-sm" data-fmt="removeFormat" title="清除选中文字格式">清格式</button>
+        </div>
+
+        <div class="toolbar-group">
+          <span class="toolbar-label">全局字号：</span>
+          <button class="btn btn-sm" id="btnFontDec" title="缩小全局正文字号（自动重排分页）">A-</button>
+          <span class="page-badge" id="fontSizeBadge">9.5pt</span>
+          <button class="btn btn-sm" id="btnFontInc" title="放大全局正文字号（自动溢出到下一页）">A+</button>
+          <span class="tb-divider"></span>
+          <span class="toolbar-label">松紧：</span>
+          <button class="btn btn-sm density-btn" data-density="compact" title="更紧凑">紧凑</button>
+          <button class="btn btn-sm density-btn active-mode" data-density="normal" title="标准排版">标准</button>
+          <button class="btn btn-sm density-btn" data-density="airy" title="更舒展">舒展</button>
+        </div>
+
+        <div class="toolbar-group">
+          <button class="btn btn-sm" id="btnAutoReflow" title="按 A4 高度自动重排跨页内容，避免超出裁切">⇄ 自动分页</button>
+          <button class="btn btn-sm" id="btnCleanEmpty" title="一键删除所有空白行、空要点和多余回车">🧹 清理空框</button>
+        </div>
+      </div>
+    </div>
+    <button type="button" class="toolbar-toggle-tab" id="btnToggleToolbar" title="收起 / 展开工具栏">
+      <span class="tri-icon">▲</span>
+    </button>
+  </div>
+
+  <input type="file" id="photoInput" accept="image/*" style="display:none" />
+
+  <!-- 通用示例简历（零个人信息，可直接分享给任何人使用） -->
+  <div class="pages-container" id="pagesContainer">
+
+    <!-- ==================== 第 1 页 ==================== -->
+    <section class="page" data-page="1">
+      <header class="resume-header">
+        <h1 class="resume-title" contenteditable="true">个人简历</h1>
+        <div class="header-icons" aria-hidden="true">
+          <div class="header-icon-circle">
+            <svg viewBox="0 0 24 24"><path d="M12 3 1 9l11 6 9-4.91V17h2V9L12 3zm0 13.72L5 12.9v3.6c0 1.93 3.13 3.5 7 3.5s7-1.57 7-3.5v-3.6l-7 3.82z"></path></svg>
+          </div>
+          <div class="header-icon-circle">
+            <svg viewBox="0 0 24 24"><path d="M10 4h4a2 2 0 0 1 2 2v1h4a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h4V6a2 2 0 0 1 2-2zm4 3V6h-4v1h4zm-3 6v2h2v-2h-2z"></path></svg>
+          </div>
+          <div class="header-icon-circle">
+            <svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm8 1.5V8h4.5L14 3.5zM8 11v1.6h8V11H8zm0 3.5v1.6h8v-1.6H8zm0 3.5v1.6h5V18H8z"></path></svg>
+          </div>
+        </div>
+        <div class="bauhaus-dots" aria-hidden="true">
+          <span class="bd-r"></span><span class="bd-y"></span><span class="bd-b"></span>
+        </div>
+      </header>
+      <div class="top-accent-bar"></div>
+
+      <div class="page-body">
+        <!-- 基本信息 -->
+        <div class="section" data-section-kind="basic-info">
+          <div class="section-tools">
+            <button type="button" class="mini-btn info-add-btn" title="新增一项基本信息">+ 字段</button>
+          </div>
+          <div class="section-header">
+            <div class="section-ribbon-wrap">
+              <div class="section-ribbon" contenteditable="true">基本信息</div>
+              <div class="section-slashes"><span></span><span></span></div>
+            </div>
+            <div class="section-line"></div>
+          </div>
+          <div class="section-content">
+            <div class="info-grid-wrap">
+              <div class="info-grid">
+                <div class="info-item">
+                  <span class="info-label"><span>姓</span><span>名</span></span><span class="info-colon">：</span>
+                  <span class="info-val" contenteditable="true">示例候选人</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">求职意向</span><span class="info-colon">：</span>
+                  <span class="info-val" contenteditable="true">全栈开发 / AI 应用工程师</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label"><span>性</span><span>别</span></span><span class="info-colon">：</span>
+                  <span class="info-val" contenteditable="true">男 / 女</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">最高学历</span><span class="info-colon">：</span>
+                  <span class="info-val" contenteditable="true">大学本科</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">出生年月</span><span class="info-colon">：</span>
+                  <span class="info-val" contenteditable="true">2000.01</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label"><span>手</span><span>机</span></span><span class="info-colon">：</span>
+                  <span class="info-val" contenteditable="true">138-0000-0000</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label"><span>邮</span><span>箱</span></span><span class="info-colon">：</span>
+                  <span class="info-val" contenteditable="true">candidate@example.com</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">现居城市</span><span class="info-colon">：</span>
+                  <span class="info-val" contenteditable="true">上海 / 可随时到岗</span>
+                </div>
+              </div>
+              <div class="photo-box" id="photoBox" title="点击上传证件照">
+                <div class="photo-placeholder">点击上传<br/>一寸证件照</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 教育经历 -->
+        <div class="section">
+          <div class="section-tools">
+            <button class="mini-btn" onclick="addEntry(this, '3col')">+ 经历</button>
+            <button class="mini-btn del" onclick="removeSection(this)">删除模块</button>
+          </div>
+          <div class="section-header">
+            <div class="section-ribbon-wrap">
+              <div class="section-ribbon" contenteditable="true">教育经历</div>
+              <div class="section-slashes"><span></span><span></span></div>
+            </div>
+            <div class="section-line"></div>
+          </div>
+          <div class="section-content">
+            <div class="entry">
+              <div class="entry-head-3">
+                <span contenteditable="true">2020.09 - 2024.06</span>
+                <span class="col-center" contenteditable="true">示例理工大学</span>
+                <span class="col-right" contenteditable="true">计算机科学与技术 / 本科</span>
+              </div>
+              <div class="kv-line"><strong>主修课程：</strong>数据结构与算法、操作系统、计算机网络、数据库系统原理、软件工程、机器学习基础。</div>
+              <div class="kv-line"><strong>在校荣誉：</strong>GPA 3.7 / 4.0（专业前 10%），多次获校级奖学金；英语六级（CET-6）。</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 工作经历 -->
+        <div class="section">
+          <div class="section-tools">
+            <button class="mini-btn" onclick="addBullet(this)">+ 要点</button>
+            <button class="mini-btn" onclick="addEntry(this, '3col')">+ 经历</button>
+            <button class="mini-btn del" onclick="removeSection(this)">删除模块</button>
+          </div>
+          <div class="section-header">
+            <div class="section-ribbon-wrap">
+              <div class="section-ribbon" contenteditable="true">工作经历</div>
+              <div class="section-slashes"><span></span><span></span></div>
+            </div>
+            <div class="section-line"></div>
+          </div>
+          <div class="section-content">
+            <div class="entry">
+              <div class="entry-head-3">
+                <span contenteditable="true">2024.07 - 至今</span>
+                <span class="col-center" contenteditable="true">示例科技有限公司</span>
+                <span class="col-right" contenteditable="true">全栈 / AI 应用工程师</span>
+              </div>
+              <ul class="bullet-list">
+                <li><strong>核心业务系统研发：</strong>主导企业级内部业务中台从 0 到 1 架构设计与落地，负责前后端接口契约、核心数据建模及多角色权限管理，支撑团队日常核心流程稳定运行。</li>
+                <li><strong>AI 能力工程化集成：</strong>围绕检索问答、文档结构化解析与智能辅助决策场景，设计受控大模型调用链路、输出校验与降级机制，在保证数据安全的前提下显著提升业务处理效率。</li>
+                <li><strong>性能与质量体系建设：</strong>搭建自动化单元/接口测试与持续集成流水线，排查并优化慢查询与前端渲染瓶颈，保障迭代交付质量与系统可观测性。</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- 项目经历 -->
+        <div class="section">
+          <div class="section-tools">
+            <button class="mini-btn" onclick="addBullet(this)">+ 要点</button>
+            <button class="mini-btn" onclick="addEntry(this, '3col')">+ 经历</button>
+            <button class="mini-btn del" onclick="removeSection(this)">删除模块</button>
+          </div>
+          <div class="section-header">
+            <div class="section-ribbon-wrap">
+              <div class="section-ribbon" contenteditable="true">项目经历</div>
+              <div class="section-slashes"><span></span><span></span></div>
+            </div>
+            <div class="section-line"></div>
+          </div>
+          <div class="section-content">
+            <div class="entry">
+              <div class="entry-head-3">
+                <span contenteditable="true">2025.03 - 2025.12</span>
+                <span class="col-center" contenteditable="true">企业级智能知识库与业务助手平台</span>
+                <span class="col-right" contenteditable="true">核心开发者</span>
+              </div>
+              <div class="kv-line"><strong>技术栈：</strong>Python、FastAPI、MySQL、向量数据库、React、TypeScript、Docker、Pytest</div>
+              <div class="kv-line"><strong>项目背景：</strong>面对企业内部规章制度、技术文档与历史工单分散难查的痛点，构建支持多格式解析、精准溯源问答与权限隔离的智能知识助手。</div>
+              <ul class="bullet-list">
+                <li><strong>多模态文档解析与切片入库：</strong>设计离线解析与向量化流水线，支持 PDF / Word / Markdown 自动结构化切片、版本管理与全量索引重建。</li>
+                <li><strong>混合检索与防幻觉引用机制：</strong>结合关键词检索与语义向量召回，强制要求模型输出附带原文片段引用；对低置信度问题自动降级提示人工核查。</li>
+                <li><strong>高可用异步任务与审计监控：</strong>引入异步任务队列解耦耗时索引与评测任务，沉淀完整调用日志与效果评估集，便于持续调优召回准确率。</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="page-actions">
+        <button class="mini-btn" onclick="addSectionToPage(this)">+ 新增大模块</button>
+      </div>
+      <div class="page-footer">第 <span class="page-num">1</span> / <span class="page-total">2</span> 页</div>
+    </section>
+
+    <!-- ==================== 第 2 页 ==================== -->
+    <section class="page" data-page="2">
+      <div class="cont-header">
+        <span class="cont-header-left" contenteditable="true">个人简历 · 项目经历与综合素质</span>
+        <span contenteditable="true">示例候选人 ｜ 全栈开发 / AI 应用工程师</span>
+      </div>
+      <div class="top-accent-bar slim"></div>
+
+      <div class="page-body">
+        <!-- 项目经历（续） -->
+        <div class="section">
+          <div class="section-tools">
+            <button class="mini-btn" onclick="addBullet(this)">+ 要点</button>
+            <button class="mini-btn" onclick="addEntry(this, '3col')">+ 经历</button>
+            <button class="mini-btn del" onclick="removeSection(this)">删除模块</button>
+          </div>
+          <div class="section-header">
+            <div class="section-ribbon-wrap">
+              <div class="section-ribbon" contenteditable="true">项目经历（续）</div>
+              <div class="section-slashes"><span></span><span></span></div>
+            </div>
+            <div class="section-line"></div>
+          </div>
+          <div class="section-content">
+            <div class="entry">
+              <div class="entry-head-3">
+                <span contenteditable="true">2024.08 - 2025.02</span>
+                <span class="col-center" contenteditable="true">自动化运营与数据分析工作台</span>
+                <span class="col-right" contenteditable="true">全栈开发负责人</span>
+              </div>
+              <div class="kv-line"><strong>技术栈：</strong>TypeScript、React、Vite、Node.js / Python、SQL、图表可视化</div>
+              <div class="kv-line"><strong>项目背景：</strong>替代团队手工整理多源报表与重复核单流程，打造集数据采集、规则校验、可视化看板与一键导出于一体的桌面 Web 工作台。</div>
+              <ul class="bullet-list">
+                <li><strong>核心流程重构：</strong>梳理并标准化 6 大高频业务表单与状态流转规则，通过乐观锁与幂等键机制避免并发提交与重复操作风险。</li>
+                <li><strong>前端交互与可视化体验：</strong>封装可复用表格分页、筛选器与趋势曲线组件，优化长列表渲染性能，显著缩短业务人员日常核对与出表耗时。</li>
+                <li><strong>质量保障与文档沉淀：</strong>编写核心接口与前端组件回归测试用例，输出清晰的数据契约与操作手册，支撑团队快速上手与平滑交接。</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- 专业技能 -->
+        <div class="section">
+          <div class="section-tools">
+            <button class="mini-btn" onclick="addBullet(this)">+ 要点</button>
+            <button class="mini-btn del" onclick="removeSection(this)">删除模块</button>
+          </div>
+          <div class="section-header">
+            <div class="section-ribbon-wrap">
+              <div class="section-ribbon" contenteditable="true">专业技能</div>
+              <div class="section-slashes"><span></span><span></span></div>
+            </div>
+            <div class="section-line"></div>
+          </div>
+          <div class="section-content">
+            <ul class="bullet-list">
+              <li><strong>编程语言与后端：</strong>熟练掌握 Python / TypeScript / SQL，熟悉 FastAPI / Node.js 等主流后端框架与 RESTful API 设计。</li>
+              <li><strong>前端与工程化：</strong>熟练使用 React / Vue、HTML5 / CSS3、Vite 及主流组件库，具备良好交互还原与状态管理能力。</li>
+              <li><strong>数据与 AI 工具链：</strong>熟悉 MySQL、Redis、向量检索、LLM API 集成、RAG 知识库与自动化测试工具（Pytest / Vitest / Docker / Git）。</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- 自我评价 -->
+        <div class="section">
+          <div class="section-tools">
+            <button class="mini-btn del" onclick="removeSection(this)">删除模块</button>
+          </div>
+          <div class="section-header">
+            <div class="section-ribbon-wrap">
+              <div class="section-ribbon" contenteditable="true">自我评价</div>
+              <div class="section-slashes"><span></span><span></span></div>
+            </div>
+            <div class="section-line"></div>
+          </div>
+          <div class="section-content">
+            <div class="paragraph-text">
+              具备扎实的全栈工程基础与业务拆解能力，注重代码规范、系统稳定性与用户体验；善于学习新技术并将其稳健落地到真实业务场景中，具有良好的跨团队沟通与文档沉淀习惯，期待在务实高效的团队中持续创造价值。
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="page-actions">
+        <button class="mini-btn" onclick="addSectionToPage(this)">+ 新增大模块</button>
+        <button class="mini-btn del" onclick="removeThisPage(this)">删除此页</button>
+      </div>
+      <div class="page-footer">第 <span class="page-num">2</span> / <span class="page-total">2</span> 页</div>
+    </section>
+
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'universal_resume_editor_v1';
+    const STYLE_KEY = 'universal_resume_style_v1';
+    const THEME_KEY = 'universal_resume_theme_v1';
+    const TOOLBAR_COLLAPSE_KEY = 'universal_resume_toolbar_collapsed_v1';
+
+    const pagesContainer = document.getElementById('pagesContainer');
+    const pageCountBadge = document.getElementById('pageCountBadge');
+    const photoInput = document.getElementById('photoInput');
+    const saveStatus = document.getElementById('saveStatus');
+    const themeSelector = document.getElementById('themeSelector');
+    const btnUndo = document.getElementById('btnUndo');
+    const btnRedo = document.getElementById('btnRedo');
+
+    let savedFileHandle = null;
+    const MAX_HISTORY = 60;
+    let historyStack = [];
+    let historyIndex = -1;
+    let isRestoringHistory = false;
+    let saveTimer = null;
+    let reflowTimer = null;
+    let entryIdSeq = 1;
+    let dragState = { el: null, kind: null };
+    let dropTarget = { el: null, pos: null };
+    let savedSelectionRange = null;
+
+    function nowTimeStr() { return new Date().toTimeString().slice(0, 8); }
+
+    function setStatus(text, type = '') {
+      if (!saveStatus) return;
+      saveStatus.textContent = text;
+      saveStatus.className = 'save-status' + (type ? ' ' + type : '');
+    }
+
+    function isBlockEmpty(el) {
+      return (el.textContent || '').replace(/[\u200B\u00A0\s]/g, '') === '';
+    }
+
+    // ===== 历史栈（支持内容 + 模板切换的 60 步 Undo / Redo） =====
+    function updateHistoryButtons() {
+      if (btnUndo) btnUndo.disabled = historyIndex <= 0;
+      if (btnRedo) btnRedo.disabled = historyIndex >= historyStack.length - 1;
+    }
+
+    function snapshotState() {
+      const clone = pagesContainer.cloneNode(true);
+      clone.querySelectorAll('[draggable]').forEach((el) => el.removeAttribute('draggable'));
+      clone.querySelectorAll('.is-dragging, .drop-before, .drop-after, .drop-into').forEach((el) => {
+        el.classList.remove('is-dragging', 'drop-before', 'drop-after', 'drop-into');
+      });
+      return { html: clone.innerHTML, theme: document.body.dataset.theme || 'sage-ribbon' };
+    }
+
+    function pushHistory() {
+      if (isRestoringHistory) return;
+      const snap = snapshotState();
+      if (historyIndex >= 0) {
+        const cur = historyStack[historyIndex];
+        if (cur.html === snap.html && cur.theme === snap.theme) {
+          updateHistoryButtons();
+          return;
+        }
+      }
+      historyStack = historyStack.slice(0, historyIndex + 1);
+      historyStack.push(snap);
+      if (historyStack.length > MAX_HISTORY) historyStack.shift();
+      historyIndex = historyStack.length - 1;
+      updateHistoryButtons();
+    }
+
+    function applyHistoryAt(idx, label) {
+      if (idx < 0 || idx >= historyStack.length) return;
+      isRestoringHistory = true;
+      historyIndex = idx;
+      const snap = historyStack[historyIndex];
+      document.body.dataset.theme = snap.theme;
+      if (themeSelector) themeSelector.value = snap.theme;
+      pagesContainer.innerHTML = snap.html;
+      enhanceBlocks(pagesContainer);
+      bindPhotoUpload();
+      updatePageNumbers(true);
+      try {
+        localStorage.setItem(STORAGE_KEY, pagesContainer.innerHTML);
+        localStorage.setItem(THEME_KEY, snap.theme);
+      } catch (e) {}
+      isRestoringHistory = false;
+      updateHistoryButtons();
+      setStatus(`${label}（可撤回 ${historyIndex} 步）`, 'dirty');
+    }
+
+    function undo() {
+      if (saveTimer) {
+        clearTimeout(saveTimer);
+        saveTimer = null;
+        pushHistory();
+      }
+      if (historyIndex > 0) applyHistoryAt(historyIndex - 1, '↶ 已撤回');
+    }
+
+    function redo() {
+      if (historyIndex < historyStack.length - 1) applyHistoryAt(historyIndex + 1, '↷ 已重做');
+    }
+
+    // ===== 修复任何意外拆分的 <p> 并增强三层编辑控件 =====
+    function healSplitParagraphs(root = pagesContainer) {
+      Array.from(root.querySelectorAll('p.kv-line, p.paragraph-text')).forEach((p) => {
+        const cls = p.className;
+        const div = document.createElement('div');
+        div.className = cls;
+        const next = p.nextElementSibling;
+        if (isBlockEmpty(p) && next && next.classList.contains('item-text')) {
+          div.appendChild(next);
+          p.replaceWith(div);
+          let sib = div.nextElementSibling;
+          while (sib && (sib.classList.contains('item-tools') || (sib.tagName === 'P' && isBlockEmpty(sib)))) {
+            const rm = sib;
+            sib = sib.nextElementSibling;
+            rm.remove();
+          }
+        } else {
+          while (p.firstChild) div.appendChild(p.firstChild);
+          p.replaceWith(div);
+        }
+      });
+      root.querySelectorAll('.entry > p, .section-content > p').forEach((p) => { if (isBlockEmpty(p)) p.remove(); });
+      root.querySelectorAll('.entry > .item-tools, .section-content > .item-tools, .page-body > .item-tools').forEach((t) => t.remove());
+      root.querySelectorAll('.entry > div:not([class]), .section-content > div:not([class])').forEach((d) => { if (isBlockEmpty(d)) d.remove(); });
+    }
+
+    function enhanceBlocks(root = pagesContainer) {
+      healSplitParagraphs(root);
+
+      // 1. 单条内容小框（圆点要点 / 说明行 / 段落）
+      root.querySelectorAll('.bullet-list > li, .kv-line, .paragraph-text').forEach((item) => {
+        let textWrap = item.querySelector(':scope > .item-text');
+        if (!textWrap) {
+          textWrap = document.createElement('div');
+          textWrap.className = 'item-text';
+          textWrap.setAttribute('contenteditable', 'true');
+          const existingTools = item.querySelector(':scope > .item-tools');
+          Array.from(item.childNodes).filter((n) => n !== existingTools).forEach((n) => textWrap.appendChild(n));
+          item.insertBefore(textWrap, item.firstChild);
+        }
+        item.removeAttribute('contenteditable');
+
+        let tools = item.querySelector(':scope > .item-tools');
+        if (!tools) {
+          tools = document.createElement('div');
+          tools.className = 'item-tools';
+          item.appendChild(tools);
+        }
+        tools.setAttribute('contenteditable', 'false');
+        const isPara = item.classList.contains('paragraph-text');
+        const toggleBtn = isPara
+          ? ''
+          : `<button type="button" class="mini-btn item-toggle-btn" title="切换圆点要点 / 无圆点说明行">${item.tagName === 'LI' ? '去圆点' : '加圆点'}</button>`;
+        tools.innerHTML = `
+          <button type="button" class="mini-btn add-btn item-add-btn" title="在下方新增一条内容">+</button>
+          ${toggleBtn}
+          <button type="button" class="mini-btn drag-handle" data-drag-kind="item" title="按住上下拖动（支持跨经历/跨页）">⋮⋮</button>
+          <button type="button" class="mini-btn del item-del-btn" title="删除此条">×</button>
+        `;
+      });
+
+      // 2. 基本信息字段
+      root.querySelectorAll('.info-item').forEach((infoItem) => {
+        const label = infoItem.querySelector('.info-label');
+        if (label && !label.getAttribute('contenteditable')) label.setAttribute('contenteditable', 'true');
+        let tools = infoItem.querySelector(':scope > .info-item-tools');
+        if (!tools) {
+          tools = document.createElement('div');
+          tools.className = 'info-item-tools';
+          infoItem.appendChild(tools);
+        }
+        tools.setAttribute('contenteditable', 'false');
+        tools.innerHTML = `
+          <button type="button" class="mini-btn drag-handle" data-drag-kind="info" title="拖动调整字段顺序">⋮⋮</button>
+          <button type="button" class="mini-btn del info-del-btn" title="删除该字段">×</button>
+        `;
+      });
+
+      // 3. 经历小模块（浅蓝底部条）
+      root.querySelectorAll('.entry').forEach((entry) => {
+        let tools = entry.querySelector(':scope > .entry-tools');
+        if (!tools) {
+          tools = document.createElement('div');
+          tools.className = 'entry-tools';
+          entry.appendChild(tools);
+        } else {
+          entry.appendChild(tools);
+        }
+        tools.setAttribute('contenteditable', 'false');
+        tools.innerHTML = `
+          <div class="entry-tools-inner">
+            <span class="tools-tag">小模块</span>
+            <button type="button" class="mini-btn add-btn entry-add-bullet-btn" title="新增一条圆点要点">+ 加要点</button>
+            <button type="button" class="mini-btn entry-add-kv-btn" title="新增一行无圆点说明">+ 加说明行</button>
+            <button type="button" class="mini-btn drag-handle" data-drag-kind="entry" title="按住拖动整段小模块（支持跨页）">⋮⋮ 拖动</button>
+            <button type="button" class="mini-btn del entry-del-btn" title="删除此小模块">× 删除</button>
+          </div>
+        `;
+      });
+
+      // 4. 大模块（深灰绿顶部条）
+      root.querySelectorAll('.section > .section-tools').forEach((tools) => {
+        tools.setAttribute('contenteditable', 'false');
+        const isBasicInfo = tools.closest('.section')?.dataset.sectionKind === 'basic-info';
+        if (!tools.querySelector('.tools-tag')) {
+          const tag = document.createElement('span');
+          tag.className = 'tools-tag';
+          tag.textContent = isBasicInfo ? '信息区' : '大模块';
+          tools.insertBefore(tag, tools.firstChild);
+        }
+        if (!isBasicInfo) {
+          if (!tools.querySelector('.drag-handle[data-drag-kind="section"]')) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'mini-btn drag-handle';
+            btn.dataset.dragKind = 'section';
+            btn.title = '按住拖动整个大模块（支持跨页）';
+            btn.textContent = '⋮⋮ 拖动';
+            const tag = tools.querySelector('.tools-tag');
+            tools.insertBefore(btn, tag ? tag.nextSibling : tools.firstChild);
+          }
+          const delBtn = tools.querySelector('.del');
+          if (delBtn) delBtn.textContent = '× 删大模块';
+        }
+      });
+    }
+
+    enhanceBlocks(pagesContainer);
+    const DEFAULT_HTML = pagesContainer.innerHTML;
+
+    // ===== 页面与模块增删 =====
+    function createExtraPageElement(pageIndex, blank = false) {
+      const sec = document.createElement('section');
+      sec.className = 'page';
+      sec.dataset.page = String(pageIndex);
+      const bodyInner = blank ? '' : `
+          <div class="section">
+            <div class="section-tools">
+              <button class="mini-btn" onclick="addBullet(this)">+ 要点</button>
+              <button class="mini-btn" onclick="addEntry(this, '3col')">+ 经历</button>
+              <button class="mini-btn del" onclick="removeSection(this)">删除模块</button>
+            </div>
+            <div class="section-header">
+              <div class="section-ribbon-wrap">
+                <div class="section-ribbon" contenteditable="true">补充经历 / 作品集</div>
+                <div class="section-slashes"><span></span><span></span></div>
+              </div>
+              <div class="section-line"></div>
+            </div>
+            <div class="section-content">
+              <div class="entry">
+                <div class="entry-head-3">
+                  <span contenteditable="true">2025.01 - 2025.06</span>
+                  <span class="col-center" contenteditable="true">补充项目 / 成果名称</span>
+                  <span class="col-right" contenteditable="true">担任角色</span>
+                </div>
+                <ul class="bullet-list">
+                  <li><strong>核心职责：</strong>在此补充更多项目细节、技术成果或作品集说明。</li>
+                  <li><strong>可验证结果：</strong>用具体事实或交付结果说明价值。</li>
+                </ul>
+              </div>
+            </div>
+          </div>`;
+      sec.innerHTML = `
+        <div class="cont-header">
+          <span class="cont-header-left" contenteditable="true">个人简历 · 续页</span>
+          <span contenteditable="true">示例候选人 ｜ 个人简历</span>
+        </div>
+        <div class="top-accent-bar slim"></div>
+        <div class="page-body">${bodyInner}</div>
+        <div class="page-actions">
+          <button class="mini-btn" onclick="addSectionToPage(this)">+ 新增大模块</button>
+          <button class="mini-btn del" onclick="removeThisPage(this)">删除此页</button>
+        </div>
+        <div class="page-footer">第 <span class="page-num">${pageIndex}</span> / <span class="page-total">${pageIndex}</span> 页</div>
+      `;
+      enhanceBlocks(sec);
+      return sec;
+    }
+
+    function updatePageNumbers(skipSave = false) {
+      const pages = pagesContainer.querySelectorAll('.page');
+      const total = pages.length;
+      pages.forEach((page, idx) => {
+        page.dataset.page = String(idx + 1);
+        const numEl = page.querySelector('.page-num');
+        const totalEl = page.querySelector('.page-total');
+        if (numEl) numEl.textContent = String(idx + 1);
+        if (totalEl) totalEl.textContent = String(total);
+      });
+      pageCountBadge.textContent = `当前：${total} 页`;
+      if (!skipSave) saveDraft();
+    }
+
+    function addSectionToPage(btn) {
+      const pageBody = btn.closest('.page').querySelector('.page-body');
+      const section = document.createElement('div');
+      section.className = 'section';
+      section.innerHTML = `
+        <div class="section-tools">
+          <button class="mini-btn" onclick="addBullet(this)">+ 要点</button>
+          <button class="mini-btn" onclick="addEntry(this, '3col')">+ 经历</button>
+          <button class="mini-btn del" onclick="removeSection(this)">删除模块</button>
+        </div>
+        <div class="section-header">
+          <div class="section-ribbon-wrap">
+            <div class="section-ribbon" contenteditable="true">新增模块</div>
+            <div class="section-slashes"><span></span><span></span></div>
+          </div>
+          <div class="section-line"></div>
+        </div>
+        <div class="section-content">
+          <ul class="bullet-list">
+            <li><strong>要点标题：</strong>在此输入具体内容，支持点击编辑、悬停拖拽或删除。</li>
+          </ul>
+        </div>
+      `;
+      enhanceBlocks(section);
+      pageBody.appendChild(section);
+      saveDraft();
+      scheduleAutoReflow(100, false);
+    }
+
+    function addBullet(btn) {
+      const section = btn.closest('.section');
+      let list = section.querySelector('.entry:last-of-type .bullet-list') || section.querySelector('.bullet-list');
+      if (!list) {
+        list = document.createElement('ul');
+        list.className = 'bullet-list';
+        const host = section.querySelector('.entry:last-of-type') || section.querySelector('.section-content');
+        const tools = host.querySelector(':scope > .entry-tools');
+        host.insertBefore(list, tools);
+      }
+      const li = document.createElement('li');
+      li.innerHTML = '<strong>新增要点：</strong>在此填写具体工作内容与成果。';
+      list.appendChild(li);
+      enhanceBlocks(list);
+      li.querySelector('.item-text')?.focus();
+      saveDraft();
+      scheduleAutoReflow(100, false);
+    }
+
+    function addEntry(btn, mode) {
+      const content = btn.closest('.section').querySelector('.section-content');
+      const entry = document.createElement('div');
+      entry.className = 'entry';
+      entry.innerHTML = mode === 'inline'
+        ? `<div class="entry-head-inline" contenteditable="true">2025.01 - 2025.06 ｜ 新增项目名称 ｜ 担任角色</div><ul class="bullet-list"><li><strong>核心内容：</strong>在此填写具体工作与成果。</li></ul>`
+        : `<div class="entry-head-3"><span contenteditable="true">2025.01 - 2025.06</span><span class="col-center" contenteditable="true">单位 / 项目名称</span><span class="col-right" contenteditable="true">职位 / 角色</span></div><ul class="bullet-list"><li><strong>核心内容：</strong>在此填写具体工作与成果。</li></ul>`;
+      enhanceBlocks(entry);
+      content.appendChild(entry);
+      saveDraft();
+      scheduleAutoReflow(100, false);
+    }
+
+    function removeSection(btn) {
+      btn.closest('.section').remove();
+      saveDraft();
+    }
+
+    function removeThisPage(btn) {
+      const pages = pagesContainer.querySelectorAll('.page');
+      if (pages.length <= 1) { alert('至少保留 1 页。'); return; }
+      if (confirm('确定删除这一页吗？')) {
+        btn.closest('.page').remove();
+        updatePageNumbers();
+      }
+    }
+
+    // ===== 委托点击事件 =====
+    pagesContainer.addEventListener('click', (e) => {
+      const itemToggle = e.target.closest('.item-toggle-btn');
+      if (itemToggle) {
+        e.preventDefault(); e.stopPropagation();
+        const item = itemToggle.closest('.bullet-list > li, .kv-line');
+        if (!item) return;
+        const textHtml = item.querySelector(':scope > .item-text')?.innerHTML ?? '';
+        const entry = item.closest('.entry') || item.closest('.section-content');
+        if (item.tagName === 'LI') {
+          const ul = item.parentElement;
+          const d = document.createElement('div');
+          d.className = 'kv-line';
+          d.innerHTML = textHtml;
+          ul.parentNode.insertBefore(d, ul);
+          item.remove();
+          if (ul.children.length === 0) ul.remove();
+          enhanceBlocks(entry || pagesContainer);
+        } else {
+          let ul = entry?.querySelector(':scope > .bullet-list');
+          if (!ul && entry) {
+            ul = document.createElement('ul');
+            ul.className = 'bullet-list';
+            entry.insertBefore(ul, entry.querySelector(':scope > .entry-tools'));
+          }
+          if (ul) {
+            const li = document.createElement('li');
+            li.innerHTML = textHtml;
+            ul.insertBefore(li, ul.firstChild);
+            item.remove();
+            enhanceBlocks(ul);
+          }
+        }
+        saveDraft();
+        return;
+      }
+
+      const infoAdd = e.target.closest('.info-add-btn');
+      if (infoAdd) {
+        e.preventDefault(); e.stopPropagation();
+        const grid = infoAdd.closest('.section')?.querySelector('.info-grid');
+        if (!grid) return;
+        const div = document.createElement('div');
+        div.className = 'info-item';
+        div.innerHTML = `<span class="info-label" contenteditable="true">新字段</span><span class="info-colon">：</span><span class="info-val" contenteditable="true">点击填写内容</span>`;
+        grid.appendChild(div);
+        enhanceBlocks(grid);
+        div.querySelector('.info-val')?.focus();
+        saveDraft();
+        return;
+      }
+
+      const infoDel = e.target.closest('.info-del-btn');
+      if (infoDel) {
+        e.preventDefault(); e.stopPropagation();
+        infoDel.closest('.info-item')?.remove();
+        saveDraft();
+        return;
+      }
+
+      const itemAdd = e.target.closest('.item-add-btn');
+      if (itemAdd) {
+        e.preventDefault(); e.stopPropagation();
+        const current = itemAdd.closest('.bullet-list > li, .kv-line, .paragraph-text');
+        if (!current) return;
+        let newEl;
+        if (current.tagName === 'LI') {
+          newEl = document.createElement('li');
+          newEl.innerHTML = '<strong>新增要点：</strong>在此填写具体内容。';
+        } else if (current.classList.contains('paragraph-text')) {
+          newEl = document.createElement('div');
+          newEl.className = 'paragraph-text';
+          newEl.style.marginTop = '1.8mm';
+          newEl.textContent = '在此输入新段落内容。';
+        } else {
+          newEl = document.createElement('div');
+          newEl.className = 'kv-line';
+          newEl.innerHTML = '<strong>补充说明：</strong>在此填写补充信息。';
+        }
+        current.parentNode.insertBefore(newEl, current.nextSibling);
+        enhanceBlocks(current.parentNode);
+        newEl.querySelector('.item-text')?.focus();
+        saveDraft();
+        scheduleAutoReflow(100, false);
+        return;
+      }
+
+      const entryAddBullet = e.target.closest('.entry-add-bullet-btn');
+      if (entryAddBullet) {
+        e.preventDefault(); e.stopPropagation();
+        const entry = entryAddBullet.closest('.entry');
+        if (!entry) return;
+        let list = entry.querySelector(':scope > .bullet-list');
+        if (!list) {
+          list = document.createElement('ul');
+          list.className = 'bullet-list';
+          entry.insertBefore(list, entry.querySelector(':scope > .entry-tools'));
+        }
+        const li = document.createElement('li');
+        li.innerHTML = '<strong>新增要点：</strong>在此填写具体内容。';
+        list.appendChild(li);
+        enhanceBlocks(list);
+        li.querySelector('.item-text')?.focus();
+        saveDraft();
+        scheduleAutoReflow(100, false);
+        return;
+      }
+
+      const entryAddKv = e.target.closest('.entry-add-kv-btn');
+      if (entryAddKv) {
+        e.preventDefault(); e.stopPropagation();
+        const entry = entryAddKv.closest('.entry');
+        if (!entry) return;
+        const d = document.createElement('div');
+        d.className = 'kv-line';
+        d.innerHTML = '<strong>补充说明：</strong>在此填写主修课程、技术栈或亮点说明。';
+        const firstList = entry.querySelector(':scope > .bullet-list');
+        entry.insertBefore(d, firstList || entry.querySelector(':scope > .entry-tools'));
+        enhanceBlocks(entry);
+        d.querySelector('.item-text')?.focus();
+        saveDraft();
+        scheduleAutoReflow(100, false);
+        return;
+      }
+
+      const itemDel = e.target.closest('.item-del-btn');
+      if (itemDel) {
+        e.preventDefault(); e.stopPropagation();
+        const item = itemDel.closest('.bullet-list > li, .kv-line, .paragraph-text');
+        if (item) {
+          const ul = item.tagName === 'LI' ? item.parentElement : null;
+          item.remove();
+          if (ul && ul.children.length === 0) ul.remove();
+          saveDraft();
+        }
+        return;
+      }
+
+      const entryDel = e.target.closest('.entry-del-btn');
+      if (entryDel) {
+        e.preventDefault(); e.stopPropagation();
+        entryDel.closest('.entry')?.remove();
+        saveDraft();
+      }
+    });
+
+    // ===== 拖拽排序（支持单条/字段/经历/大模块跨页拖拽） =====
+    function clearDropIndicators() {
+      pagesContainer.querySelectorAll('.drop-before, .drop-after, .drop-into').forEach((el) => {
+        el.classList.remove('drop-before', 'drop-after', 'drop-into');
+      });
+      dropTarget = { el: null, pos: null };
+    }
+
+    function cleanupDrag() {
+      if (dragState.el) {
+        dragState.el.classList.remove('is-dragging');
+        dragState.el.removeAttribute('draggable');
+      }
+      dragState = { el: null, kind: null };
+      clearDropIndicators();
+    }
+
+    pagesContainer.addEventListener('pointerdown', (e) => {
+      const handle = e.target.closest('.drag-handle');
+      if (!handle) return;
+      const kind = handle.dataset.dragKind;
+      let target = null;
+      if (kind === 'item') target = handle.closest('.bullet-list > li, .kv-line, .paragraph-text');
+      else if (kind === 'info') target = handle.closest('.info-item');
+      else if (kind === 'entry') target = handle.closest('.entry');
+      else if (kind === 'section') target = handle.closest('.section');
+      if (target) {
+        target.setAttribute('draggable', 'true');
+        dragState = { el: target, kind };
+      }
+    });
+
+    document.addEventListener('pointerup', () => {
+      if (dragState.el && !dragState.el.classList.contains('is-dragging')) {
+        dragState.el.removeAttribute('draggable');
+        dragState = { el: null, kind: null };
+      }
+    });
+
+    pagesContainer.addEventListener('dragstart', (e) => {
+      if (!dragState.el || e.target !== dragState.el) return;
+      dragState.el.classList.add('is-dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      try { e.dataTransfer.setData('text/plain', dragState.kind); } catch (err) {}
+    });
+
+    pagesContainer.addEventListener('dragover', (e) => {
+      if (!dragState.el) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      clearDropIndicators();
+
+      const { el: dragged, kind } = dragState;
+      if (kind === 'item') {
+        const isLi = dragged.tagName === 'LI';
+        const selector = isLi ? '.bullet-list > li' : (dragged.classList.contains('paragraph-text') ? '.paragraph-text' : '.kv-line');
+        const overItem = e.target.closest(selector);
+        if (overItem && overItem !== dragged && !dragged.contains(overItem)) {
+          const rect = overItem.getBoundingClientRect();
+          const pos = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+          overItem.classList.add(pos === 'before' ? 'drop-before' : 'drop-after');
+          dropTarget = { el: overItem, pos };
+          return;
+        }
+        const overList = isLi ? e.target.closest('.bullet-list') : e.target.closest('.entry');
+        if (overList && !dragged.contains(overList)) {
+          overList.classList.add('drop-into');
+          dropTarget = { el: overList, pos: 'into' };
+        }
+      } else if (kind === 'info') {
+        const overInfo = e.target.closest('.info-item');
+        if (overInfo && overInfo !== dragged) {
+          const rect = overInfo.getBoundingClientRect();
+          const pos = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+          overInfo.classList.add(pos === 'before' ? 'drop-before' : 'drop-after');
+          dropTarget = { el: overInfo, pos };
+        }
+      } else if (kind === 'entry') {
+        const overEntry = e.target.closest('.entry');
+        if (overEntry && overEntry !== dragged && !dragged.contains(overEntry)) {
+          const rect = overEntry.getBoundingClientRect();
+          const pos = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+          overEntry.classList.add(pos === 'before' ? 'drop-before' : 'drop-after');
+          dropTarget = { el: overEntry, pos };
+          return;
+        }
+        const overContent = e.target.closest('.section-content');
+        if (overContent && !dragged.contains(overContent)) {
+          overContent.classList.add('drop-into');
+          dropTarget = { el: overContent, pos: 'into' };
+        }
+      } else if (kind === 'section') {
+        const overSection = e.target.closest('.section');
+        if (overSection && overSection !== dragged && !dragged.contains(overSection)) {
+          const rect = overSection.getBoundingClientRect();
+          const pos = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+          overSection.classList.add(pos === 'before' ? 'drop-before' : 'drop-after');
+          dropTarget = { el: overSection, pos };
+          return;
+        }
+        const overBody = e.target.closest('.page-body');
+        if (overBody && !dragged.contains(overBody)) {
+          overBody.classList.add('drop-into');
+          dropTarget = { el: overBody, pos: 'into' };
+        }
+      }
+    });
+
+    pagesContainer.addEventListener('drop', (e) => {
+      if (!dragState.el || !dropTarget.el) { cleanupDrag(); return; }
+      e.preventDefault();
+      const { el: dragged } = dragState;
+      const { el: target, pos } = dropTarget;
+      if (target !== dragged && !dragged.contains(target)) {
+        if (pos === 'before') target.parentNode.insertBefore(dragged, target);
+        else if (pos === 'after') target.parentNode.insertBefore(dragged, target.nextSibling);
+        else if (pos === 'into') target.appendChild(dragged);
+        saveDraft();
+        scheduleAutoReflow(120, false);
+      }
+      cleanupDrag();
+    });
+
+    pagesContainer.addEventListener('dragend', () => cleanupDrag());
+
+    // ===== 空框 Backspace/Delete 直接删 + Enter 新建下一条 =====
+    function focusEndOfElement(el) {
+      if (!el) return;
+      el.focus();
+      try {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        range.collapse(false);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      } catch (e) {}
+    }
+
+    pagesContainer.addEventListener('keydown', (e) => {
+      const textBox = e.target.closest('.item-text');
+      if (!textBox) return;
+      const item = textBox.closest('.bullet-list > li, .kv-line, .paragraph-text');
+      if (!item) return;
+
+      if ((e.key === 'Backspace' || e.key === 'Delete') && isBlockEmpty(textBox)) {
+        e.preventDefault();
+        const editables = Array.from(pagesContainer.querySelectorAll('.item-text'));
+        const idx = editables.indexOf(textBox);
+        const prev = idx > 0 ? editables[idx - 1] : editables[idx + 1];
+        const ul = item.tagName === 'LI' ? item.parentElement : null;
+        item.remove();
+        if (ul && ul.children.length === 0) ul.remove();
+        saveDraft();
+        if (prev) focusEndOfElement(prev);
+        return;
+      }
+
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && !item.classList.contains('paragraph-text')) {
+        e.preventDefault();
+        const newEl = item.tagName === 'LI' ? document.createElement('li') : Object.assign(document.createElement('div'), { className: 'kv-line' });
+        item.parentNode.insertBefore(newEl, item.nextSibling);
+        enhanceBlocks(item.parentNode);
+        newEl.querySelector('.item-text')?.focus();
+        saveDraft();
+        scheduleAutoReflow(100, false);
+      }
+    });
+
+    // ===== 选中文字单独改字体 / 字号 / 颜色 / 格式 =====
+    function isNodeInsidePages(node) {
+      return node && pagesContainer.contains(node.nodeType === 3 ? node.parentNode : node);
+    }
+
+    document.addEventListener('selectionchange', () => {
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+      const range = sel.getRangeAt(0);
+      if (isNodeInsidePages(range.commonAncestorContainer)) {
+        savedSelectionRange = range.cloneRange();
+      }
+    });
+
+    function applyInlineStyleToSelection(styleProp, styleValue) {
+      if (!styleValue) return false;
+      const sel = window.getSelection();
+      let range = null;
+      if (sel && sel.rangeCount > 0 && !sel.isCollapsed && isNodeInsidePages(sel.getRangeAt(0).commonAncestorContainer)) {
+        range = sel.getRangeAt(0);
+      } else if (savedSelectionRange && isNodeInsidePages(savedSelectionRange.commonAncestorContainer)) {
+        range = savedSelectionRange.cloneRange();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+      if (!range || range.collapsed) {
+        setStatus('请先划选需要修改的文字', 'dirty');
+        return false;
+      }
+
+      const marker = '__RESUME_STYLE_MARKER__';
+      document.execCommand('styleWithCSS', false, false);
+      const ok = document.execCommand('fontName', false, marker);
+      const spans = [];
+      if (ok) {
+        pagesContainer.querySelectorAll(`font[face="${marker}"], span[style*="${marker}"]`).forEach((el) => {
+          const span = document.createElement('span');
+          if (el.tagName === 'SPAN' && el.getAttribute('style')) {
+            span.setAttribute('style', el.getAttribute('style'));
+            span.style.fontFamily = '';
+          }
+          span.style[styleProp] = styleValue;
+          while (el.firstChild) span.appendChild(el.firstChild);
+          el.replaceWith(span);
+          spans.push(span);
+        });
+      }
+      if (spans.length === 0) {
+        try {
+          const span = document.createElement('span');
+          span.style[styleProp] = styleValue;
+          span.appendChild(range.extractContents());
+          range.insertNode(span);
+          spans.push(span);
+        } catch (err) {
+          setStatus('请在同一段内划选文字', 'dirty');
+          return false;
+        }
+      }
+      if (spans.length > 0 && sel) {
+        const nr = document.createRange();
+        nr.setStartBefore(spans[0]);
+        nr.setEndAfter(spans[spans.length - 1]);
+        sel.removeAllRanges();
+        sel.addRange(nr);
+        savedSelectionRange = nr.cloneRange();
+      }
+      saveDraft();
+      if (styleProp === 'fontSize') scheduleAutoReflow(120, true);
+      return true;
+    }
+
+    document.querySelectorAll('[data-fmt]').forEach((btn) => {
+      btn.addEventListener('mousedown', (e) => e.preventDefault());
+      btn.addEventListener('click', () => {
+        document.execCommand(btn.dataset.fmt, false, null);
+        saveDraft();
+      });
+    });
+
+    const selFontFamily = document.getElementById('selFontFamily');
+    const selFontSize = document.getElementById('selFontSize');
+    const selFontColor = document.getElementById('selFontColor');
+
+    selFontFamily?.addEventListener('change', () => {
+      if (selFontFamily.value && applyInlineStyleToSelection('fontFamily', selFontFamily.value)) setStatus('已修改选中字体', 'dirty');
+      selFontFamily.value = '';
+    });
+    selFontSize?.addEventListener('change', () => {
+      if (selFontSize.value && applyInlineStyleToSelection('fontSize', selFontSize.value)) setStatus(`选区字号：${selFontSize.value}`, 'dirty');
+      selFontSize.value = '';
+    });
+    selFontColor?.addEventListener('input', () => {
+      if (applyInlineStyleToSelection('color', selFontColor.value)) setStatus('已修改选中文字颜色', 'dirty');
+    });
+
+    // ===== 智能自动跨页重排引擎 =====
+    function ensureEntryIds() {
+      pagesContainer.querySelectorAll('.entry').forEach((entry) => {
+        if (!entry.dataset.entryId && !entry.dataset.contEntry) entry.dataset.entryId = 'e' + (entryIdSeq++);
+      });
+    }
+
+    function getBaseSectionTitle(sec) {
+      const raw = (sec.querySelector(':scope > .section-header .section-ribbon')?.textContent || '').trim();
+      return raw.replace(/（续）|\(续\)/g, '').trim();
+    }
+
+    function getPageSafeBottom(page) { return page.getBoundingClientRect().bottom - 34; }
+
+    function getPageContentBottom(page) {
+      const body = page.querySelector(':scope > .page-body');
+      if (!body) return page.getBoundingClientRect().top;
+      const sections = body.querySelectorAll(':scope > .section');
+      if (sections.length === 0) return body.getBoundingClientRect().top + 16;
+      return sections[sections.length - 1].getBoundingClientRect().bottom;
+    }
+
+    function getOrCreateContSection(nextBody, sourceSec) {
+      const baseTitle = getBaseSectionTitle(sourceSec);
+      const firstSec = nextBody.querySelector(':scope > .section');
+      if (firstSec && getBaseSectionTitle(firstSec) === baseTitle) return firstSec;
+      const contSec = document.createElement('div');
+      contSec.className = 'section';
+      contSec.dataset.contSec = '1';
+      contSec.innerHTML = `
+        <div class="section-tools">
+          <button class="mini-btn" onclick="addBullet(this)">+ 要点</button>
+          <button class="mini-btn" onclick="addEntry(this, '3col')">+ 经历</button>
+          <button class="mini-btn del" onclick="removeSection(this)">删除模块</button>
+        </div>
+        <div class="section-header">
+          <div class="section-ribbon-wrap">
+            <div class="section-ribbon" contenteditable="true">${baseTitle}（续）</div>
+            <div class="section-slashes"><span></span><span></span></div>
+          </div>
+          <div class="section-line"></div>
+        </div>
+        <div class="section-content"></div>
+      `;
+      nextBody.insertBefore(contSec, nextBody.firstChild);
+      enhanceBlocks(contSec);
+      return contSec;
+    }
+
+    function getOrCreateContEntry(contSecContent, sourceEntry) {
+      const eid = sourceEntry.dataset.entryId || sourceEntry.dataset.contEntry || ('e' + (entryIdSeq++));
+      if (!sourceEntry.dataset.entryId && !sourceEntry.dataset.contEntry) sourceEntry.dataset.entryId = eid;
+      const firstEntry = contSecContent.querySelector(':scope > .entry');
+      if (firstEntry && firstEntry.dataset.contEntry === eid) return firstEntry;
+      const contEntry = document.createElement('div');
+      contEntry.className = 'entry';
+      contEntry.dataset.contEntry = eid;
+      contEntry.innerHTML = '<ul class="bullet-list"></ul>';
+      contSecContent.insertBefore(contEntry, contSecContent.firstChild);
+      enhanceBlocks(contEntry);
+      return contEntry;
+    }
+
+    function autoReflowPages(allowPullBack = true) {
+      ensureEntryIds();
+      let moved = false;
+
+      let guard = 0;
+      for (let i = 0; i < pagesContainer.querySelectorAll('.page').length && guard < 80; i++) {
+        const page = pagesContainer.querySelectorAll('.page')[i];
+        const body = page?.querySelector(':scope > .page-body');
+        if (!body) continue;
+
+        let innerGuard = 0;
+        while (getPageContentBottom(page) > getPageSafeBottom(page) && innerGuard < 30) {
+          innerGuard++; guard++;
+          const sections = Array.from(body.querySelectorAll(':scope > .section'));
+          if (sections.length === 0) break;
+          const lastSec = sections[sections.length - 1];
+          const secContent = lastSec.querySelector(':scope > .section-content');
+          const entries = secContent ? Array.from(secContent.querySelectorAll(':scope > .entry')) : [];
+
+          let nextPage = pagesContainer.querySelectorAll('.page')[i + 1];
+          if (!nextPage) {
+            nextPage = createExtraPageElement(i + 2, true);
+            pagesContainer.appendChild(nextPage);
+          }
+          const nextBody = nextPage.querySelector(':scope > .page-body');
+
+          if (entries.length > 0) {
+            const lastEntry = entries[entries.length - 1];
+            const ul = lastEntry.querySelector(':scope > .bullet-list');
+            const lis = ul ? Array.from(ul.querySelectorAll(':scope > li')) : [];
+            if (lis.length > 1) {
+              const contSec = getOrCreateContSection(nextBody, lastSec);
+              const contEntry = getOrCreateContEntry(contSec.querySelector(':scope > .section-content'), lastEntry);
+              const contUl = contEntry.querySelector(':scope > .bullet-list') || (() => {
+                const u = document.createElement('ul');
+                u.className = 'bullet-list';
+                contEntry.insertBefore(u, contEntry.querySelector(':scope > .entry-tools'));
+                return u;
+              })();
+              contUl.insertBefore(lis[lis.length - 1], contUl.firstChild);
+              moved = true;
+              continue;
+            }
+            if (entries.length > 1) {
+              const contSec = getOrCreateContSection(nextBody, lastSec);
+              contSec.querySelector(':scope > .section-content').insertBefore(lastEntry, contSec.querySelector(':scope > .section-content').firstChild);
+              moved = true;
+              continue;
+            }
+          }
+          if (sections.length > 1) {
+            nextBody.insertBefore(lastSec, nextBody.firstChild);
+            moved = true;
+            continue;
+          }
+          break;
+        }
+      }
+
+      if (allowPullBack) {
+        let pullGuard = 0;
+        for (let i = 0; i < pagesContainer.querySelectorAll('.page').length - 1 && pullGuard < 60; i++) {
+          const pages = Array.from(pagesContainer.querySelectorAll('.page'));
+          const page = pages[i], nextPage = pages[i + 1];
+          const body = page?.querySelector(':scope > .page-body');
+          const nextBody = nextPage?.querySelector(':scope > .page-body');
+          if (!body || !nextBody) continue;
+
+          let stepGuard = 0;
+          while (stepGuard < 25) {
+            stepGuard++; pullGuard++;
+            const avail = getPageSafeBottom(page) - getPageContentBottom(page);
+            if (avail < 22) break;
+            const nextFirstSec = nextBody.querySelector(':scope > .section');
+            if (!nextFirstSec) break;
+            const lastSecHere = Array.from(body.querySelectorAll(':scope > .section')).pop();
+            const sameSection = lastSecHere && getBaseSectionTitle(lastSecHere) === getBaseSectionTitle(nextFirstSec);
+
+            if (sameSection) {
+              const nextSecContent = nextFirstSec.querySelector(':scope > .section-content');
+              const firstNextEntry = nextSecContent?.querySelector(':scope > .entry');
+              if (!firstNextEntry) { nextFirstSec.remove(); moved = true; continue; }
+              const lastEntryHere = Array.from(lastSecHere.querySelectorAll(':scope > .section-content > .entry')).pop();
+              const isSameSplitEntry = lastEntryHere && firstNextEntry.dataset.contEntry &&
+                (lastEntryHere.dataset.entryId === firstNextEntry.dataset.contEntry || lastEntryHere.dataset.contEntry === firstNextEntry.dataset.contEntry);
+
+              if (isSameSplitEntry) {
+                const nextLi = firstNextEntry.querySelector(':scope > .bullet-list > li');
+                if (nextLi && nextLi.getBoundingClientRect().height + 6 <= avail) {
+                  const targetUl = lastEntryHere.querySelector(':scope > .bullet-list') || (() => {
+                    const u = document.createElement('ul');
+                    u.className = 'bullet-list';
+                    lastEntryHere.insertBefore(u, lastEntryHere.querySelector(':scope > .entry-tools'));
+                    return u;
+                  })();
+                  targetUl.appendChild(nextLi);
+                  moved = true;
+                  if (!firstNextEntry.querySelector(':scope > .bullet-list > li')) {
+                    firstNextEntry.remove();
+                    if (!nextSecContent.querySelector(':scope > .entry')) nextFirstSec.remove();
+                  }
+                  continue;
+                }
+                break;
+              }
+              if (firstNextEntry.getBoundingClientRect().height + 14 <= avail) {
+                lastSecHere.querySelector(':scope > .section-content').appendChild(firstNextEntry);
+                moved = true;
+                if (!nextSecContent.querySelector(':scope > .entry')) nextFirstSec.remove();
+                continue;
+              }
+              break;
+            }
+            if (nextFirstSec.getBoundingClientRect().height + 16 <= avail) {
+              body.appendChild(nextFirstSec);
+              moved = true;
+              continue;
+            }
+            break;
+          }
+        }
+
+        let pagesAfter = Array.from(pagesContainer.querySelectorAll('.page'));
+        while (pagesAfter.length > 1) {
+          const tail = pagesAfter[pagesAfter.length - 1];
+          if (!tail.querySelector(':scope > .page-body > .section')) {
+            tail.remove();
+            moved = true;
+            pagesAfter.pop();
+          } else break;
+        }
+      }
+
+      if (moved) {
+        enhanceBlocks(pagesContainer);
+        updatePageNumbers(true);
+        saveDraft();
+      }
+      return moved;
+    }
+
+    function scheduleAutoReflow(delay = 160, allowPullBack = true) {
+      clearTimeout(reflowTimer);
+      reflowTimer = setTimeout(() => autoReflowPages(allowPullBack), delay);
+    }
+
+    // ===== 13 套模板切换 =====
+    function applyTheme(themeId, persist = true) {
+      document.body.dataset.theme = themeId;
+      if (themeSelector) themeSelector.value = themeId;
+      if (persist) {
+        try { localStorage.setItem(THEME_KEY, themeId); } catch (e) {}
+        pushHistory();
+        scheduleAutoReflow(80, true);
+        const label = themeSelector?.selectedOptions[0]?.textContent || themeId;
+        setStatus(`已切换模板：${label.split('·')[0].trim()}`, 'dirty');
+      }
+    }
+
+    themeSelector?.addEventListener('change', () => applyTheme(themeSelector.value, true));
+
+    // ===== 全局字号、松紧与清理空框 =====
+    const fontSizeBadge = document.getElementById('fontSizeBadge');
+    const DENSITY_PRESETS = {
+      compact: { lh: 1.48, secGap: '3.0mm', itemGap: '1.0mm' },
+      normal:  { lh: 1.60, secGap: '4.4mm', itemGap: '1.6mm' },
+      airy:    { lh: 1.72, secGap: '5.8mm', itemGap: '2.4mm' },
+    };
+    let styleState = { fontSize: 9.5, density: 'normal' };
+
+    function applyStyleState(persist = true) {
+      const rs = document.documentElement.style;
+      const preset = DENSITY_PRESETS[styleState.density] || DENSITY_PRESETS.normal;
+      rs.setProperty('--body-size', `${styleState.fontSize.toFixed(1)}pt`);
+      rs.setProperty('--body-lh', String(preset.lh));
+      rs.setProperty('--sec-gap', preset.secGap);
+      rs.setProperty('--item-gap', preset.itemGap);
+      if (fontSizeBadge) fontSizeBadge.textContent = `${styleState.fontSize.toFixed(1)}pt`;
+      document.querySelectorAll('.density-btn').forEach((b) => {
+        b.classList.toggle('active-mode', b.dataset.density === styleState.density);
+      });
+      if (persist) {
+        try { localStorage.setItem(STYLE_KEY, JSON.stringify(styleState)); } catch (e) {}
+      }
+    }
+
+    document.getElementById('btnFontDec')?.addEventListener('click', () => {
+      styleState.fontSize = Math.max(8.5, +(styleState.fontSize - 0.5).toFixed(1));
+      applyStyleState(true);
+      autoReflowPages(true);
+      setStatus(`字号 ${styleState.fontSize.toFixed(1)}pt（已自动重排）`, 'dirty');
+    });
+
+    document.getElementById('btnFontInc')?.addEventListener('click', () => {
+      styleState.fontSize = Math.min(12.0, +(styleState.fontSize + 0.5).toFixed(1));
+      applyStyleState(true);
+      autoReflowPages(true);
+      setStatus(`字号 ${styleState.fontSize.toFixed(1)}pt（已自动重排）`, 'dirty');
+    });
+
+    document.querySelectorAll('.density-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        styleState.density = btn.dataset.density;
+        applyStyleState(true);
+        autoReflowPages(true);
+        setStatus(`版式：${btn.textContent}（已自动重排）`, 'dirty');
+      });
+    });
+
+    document.getElementById('btnAutoReflow')?.addEventListener('click', () => {
+      const changed = autoReflowPages(true);
+      setStatus(changed ? '⇄ 已自动重排分页' : '当前分页已合适，无内容超出', changed ? 'dirty' : '');
+    });
+
+    document.getElementById('btnCleanEmpty')?.addEventListener('click', () => {
+      const beforeCount = pagesContainer.querySelectorAll('p, div, li').length;
+      healSplitParagraphs(pagesContainer);
+      let removed = Math.max(0, beforeCount - pagesContainer.querySelectorAll('p, div, li').length);
+      pagesContainer.querySelectorAll('.item-text').forEach((box) => {
+        box.querySelectorAll('div, p').forEach((el) => { if (isBlockEmpty(el)) { el.remove(); removed++; } });
+        while (box.firstChild && box.firstChild.nodeName === 'BR') { box.firstChild.remove(); removed++; }
+        while (box.lastChild && box.lastChild.nodeName === 'BR') { box.lastChild.remove(); removed++; }
+      });
+      pagesContainer.querySelectorAll('.bullet-list > li, .kv-line, .paragraph-text').forEach((item) => {
+        const box = item.querySelector(':scope > .item-text') || item;
+        if (isBlockEmpty(box)) {
+          const ul = item.tagName === 'LI' ? item.parentElement : null;
+          item.remove();
+          if (ul && ul.children.length === 0) ul.remove();
+          removed++;
+        }
+      });
+      pagesContainer.querySelectorAll('.bullet-list').forEach((ul) => { if (ul.children.length === 0) { ul.remove(); removed++; } });
+      if (removed > 0) { saveDraft(); setStatus(`🧹 已清理 ${removed} 处空框/空行`, 'dirty'); }
+      else setStatus('当前没有多余空框');
+    });
+
+    // ===== 照片上传（自动高清压缩） =====
+    function bindPhotoUpload() {
+      const photoBox = document.getElementById('photoBox');
+      if (photoBox) photoBox.onclick = () => photoInput.click();
+    }
+
+    photoInput.addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const maxW = 600;
+          const scale = img.width > maxW ? maxW / img.width : 1;
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          const compressed = canvas.toDataURL('image/jpeg', 0.9);
+          const photoBox = document.getElementById('photoBox');
+          if (photoBox) {
+            photoBox.innerHTML = `<img src="${compressed}" alt="证件照" />`;
+            saveDraft();
+          }
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+      photoInput.value = '';
+    });
+
+    // ===== 草稿暂存 & 保存完整可分享 HTML 文件 =====
+    function saveDraft() {
+      pushHistory();
+      try {
+        localStorage.setItem(STORAGE_KEY, pagesContainer.innerHTML);
+        setStatus(`草稿已暂存 ${nowTimeStr()}`, 'dirty');
+      } catch (e) {
+        setStatus('暂存受限，请点「保存文件」', 'error');
+      }
+    }
+
+    function buildFullHtmlSnapshot() {
+      cleanupDrag();
+      updatePageNumbers(true);
+      const clone = document.documentElement.cloneNode(true);
+      const statusEl = clone.querySelector('#saveStatus');
+      if (statusEl) { statusEl.textContent = '已就绪'; statusEl.className = 'save-status'; }
+      clone.querySelectorAll('[draggable]').forEach((el) => el.removeAttribute('draggable'));
+      clone.querySelectorAll('.is-dragging, .drop-before, .drop-after, .drop-into').forEach((el) => {
+        el.classList.remove('is-dragging', 'drop-before', 'drop-after', 'drop-into');
+      });
+      const inputEl = clone.querySelector('#photoInput');
+      if (inputEl) inputEl.value = '';
+      const uBtn = clone.querySelector('#btnUndo'), rBtn = clone.querySelector('#btnRedo');
+      if (uBtn) uBtn.disabled = true;
+      if (rBtn) rBtn.disabled = true;
+      clone.querySelector('#toolbarDock')?.classList.remove('collapsed');
+      clone.querySelector('body')?.classList.remove('toolbar-collapsed');
+      const selClone = clone.querySelector('#themeSelector');
+      if (selClone) {
+        const curTheme = document.body.dataset.theme || 'sage-ribbon';
+        selClone.querySelectorAll('option').forEach((opt) => {
+          if (opt.value === curTheme) opt.setAttribute('selected', 'selected');
+          else opt.removeAttribute('selected');
+        });
+      }
+      return '<!DOCTYPE html>\n' + clone.outerHTML;
+    }
+
+    async function saveToFile() {
+      try {
+        localStorage.setItem(STORAGE_KEY, pagesContainer.innerHTML);
+        localStorage.setItem(THEME_KEY, document.body.dataset.theme || 'sage-ribbon');
+      } catch (e) {}
+
+      const fullHtml = buildFullHtmlSnapshot();
+      const fileName = '通用简历编辑器-13套模板.html';
+
+      if (typeof window.showSaveFilePicker === 'function') {
+        try {
+          if (!savedFileHandle) {
+            savedFileHandle = await window.showSaveFilePicker({
+              suggestedName: fileName,
+              types: [{ description: 'HTML 简历文件', accept: { 'text/html': ['.html'] } }],
+            });
+          }
+          const writable = await savedFileHandle.createWritable();
+          await writable.write(fullHtml);
+          await writable.close();
+          setStatus(`✓ 已保存至磁盘 (${nowTimeStr()})`);
+          return;
+        } catch (err) {
+          if (err && err.name === 'AbortError') return;
+          savedFileHandle = null;
+        }
+      }
+
+      const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setStatus(`✓ 已导出最新 HTML (${nowTimeStr()})`);
+    }
+
+    // ===== 工具栏折叠三角 =====
+    const toolbarDock = document.getElementById('toolbarDock');
+    const btnToggleToolbar = document.getElementById('btnToggleToolbar');
+
+    function setToolbarCollapsed(collapsed, persist = true) {
+      toolbarDock?.classList.toggle('collapsed', collapsed);
+      document.body.classList.toggle('toolbar-collapsed', collapsed);
+      if (btnToggleToolbar) btnToggleToolbar.title = collapsed ? '展开工具栏' : '收起工具栏';
+      if (persist) { try { localStorage.setItem(TOOLBAR_COLLAPSE_KEY, collapsed ? '1' : '0'); } catch (e) {} }
+    }
+
+    btnToggleToolbar?.addEventListener('click', () => setToolbarCollapsed(!toolbarDock.classList.contains('collapsed'), true));
+
+    // ===== 按钮与快捷键绑定 =====
+    document.getElementById('btnAddPage')?.addEventListener('click', () => {
+      const nextIndex = pagesContainer.querySelectorAll('.page').length + 1;
+      pagesContainer.appendChild(createExtraPageElement(nextIndex, false));
+      updatePageNumbers();
+      pagesContainer.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    document.getElementById('btnRemovePage')?.addEventListener('click', () => {
+      const pages = pagesContainer.querySelectorAll('.page');
+      if (pages.length <= 1) { alert('至少保留 1 页。'); return; }
+      if (confirm(`确定删除第 ${pages.length} 页吗？`)) {
+        pages[pages.length - 1].remove();
+        updatePageNumbers();
+      }
+    });
+
+    btnUndo?.addEventListener('click', () => undo());
+    btnRedo?.addEventListener('click', () => redo());
+    document.getElementById('btnSaveHtml')?.addEventListener('click', () => saveToFile());
+    document.getElementById('btnPrint')?.addEventListener('click', () => window.print());
+
+    document.getElementById('btnReset')?.addEventListener('click', () => {
+      if (!confirm('确定恢复为初始空白示例模板吗？（可按 Ctrl+Z 撤回）')) return;
+      localStorage.removeItem(STORAGE_KEY);
+      pagesContainer.innerHTML = DEFAULT_HTML;
+      enhanceBlocks(pagesContainer);
+      bindPhotoUpload();
+      updatePageNumbers(true);
+      pushHistory();
+      setStatus('已恢复默认示例（可 Ctrl+Z 撤回）');
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const k = e.key.toLowerCase();
+      if (k === 's') { e.preventDefault(); saveToFile(); }
+      else if (k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+      else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); redo(); }
+    });
+
+    pagesContainer.addEventListener('input', () => {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => { saveDraft(); autoReflowPages(false); }, 350);
+    });
+    pagesContainer.addEventListener('focusout', () => saveDraft());
+    window.addEventListener('beforeunload', () => {
+      try {
+        localStorage.setItem(STORAGE_KEY, pagesContainer.innerHTML);
+        localStorage.setItem(THEME_KEY, document.body.dataset.theme || 'sage-ribbon');
+      } catch (e) {}
+    });
+
+    // ===== 初始化恢复 =====
+    (function init() {
+      const inlineFs = parseFloat(document.documentElement.style.getPropertyValue('--body-size'));
+      if (!isNaN(inlineFs) && inlineFs >= 8 && inlineFs <= 12) styleState.fontSize = inlineFs;
+      try {
+        const savedStyle = JSON.parse(localStorage.getItem(STYLE_KEY) || 'null');
+        if (savedStyle && typeof savedStyle.fontSize === 'number') styleState = savedStyle;
+      } catch (e) {}
+      applyStyleState(false);
+
+      try {
+        const savedTheme = localStorage.getItem(THEME_KEY);
+        if (savedTheme) applyTheme(savedTheme, false);
+        else applyTheme(document.body.dataset.theme || 'sage-ribbon', false);
+      } catch (e) {}
+
+      try {
+        if (localStorage.getItem(TOOLBAR_COLLAPSE_KEY) === '1') setToolbarCollapsed(true, false);
+      } catch (e) {}
+
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved && saved.trim()) {
+          pagesContainer.innerHTML = saved;
+          setStatus('已恢复上次编辑草稿');
+        }
+      } catch (e) {}
+
+      enhanceBlocks(pagesContainer);
+      bindPhotoUpload();
+      updatePageNumbers(true);
+      historyStack = [snapshotState()];
+      historyIndex = 0;
+      updateHistoryButtons();
+    })();
+  </script>
+  <script src="/vendor/html2canvas.min.js"></script>
+  <script src="/ai-tailor.js"></script>
+</body>
+</html>

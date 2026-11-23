@@ -1,0 +1,17 @@
+{
+  "name": "ai-resume-tailor",
+  "version": "1.0.0",
+  "description": "Local AI Resume Tailor with 13-template HTML editor, OpenAI-compatible LLM, and zero-scraping Tampermonkey JD capture",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "html2canvas": "^1.4.1",
+    "mammoth": "^1.8.0",
+    "pdf-parse": "^1.1.1"
+  }
+}
