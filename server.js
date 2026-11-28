@@ -134,6 +134,89 @@ app.post('/api/master/upload', (req, res) => {
   }
 });
 
+// 主简历备份与恢复（应用新制作的主简历前自动备份，防误覆盖）
+app.get('/api/master/backup', (req, res) => {
+  res.json({ ok: true, ...store.getMasterBackupMeta() });
+});
+
+app.post('/api/master/backup', (req, res) => {
+  const backup = store.backupMaster();
+  res.json({ ok: true, hasBackup: Boolean(backup), backedUpAt: backup?.backedUpAt || null });
+});
+
+app.post('/api/master/restore-backup', (req, res) => {
+  const master = store.restoreMasterBackup();
+  if (!master) return res.status(404).json({ ok: false, error: '暂无可恢复的旧主简历备份' });
+  res.json({ ok: true, master });
+});
+
+// 通用文档解析接口（供「主简历制作」解析用户上传的旧简历 PDF/DOCX/HTML/PNG）
+app.post('/api/parse-document', async (req, res) => {
+  try {
+    const { fileName, base64Content } = req.body || {};
+    if (!fileName || !base64Content) {
+      return res.status(400).json({ ok: false, error: '请上传 PDF / DOCX / HTML / PNG 文件' });
+    }
+    const config = store.getRawConfig();
+    const parsed = await parser.parseGoldenDocument({
+      fileName,
+      base64Content,
+      visionExtractor: (dataUrl) => llm.extractResumeTextFromImage(config, dataUrl)
+    });
+    res.json({ ok: true, ...parsed });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+// 从选定的黄金标杆中提取「排版蓝图」（除基本信息外的模块顺序与结构类型）
+app.post('/api/master-builder/blueprint', async (req, res) => {
+  try {
+    const { goldenSampleId, modelOverride } = req.body || {};
+    const gs = store.getGoldenSet();
+    const target = gs.samples.find((s) => s.id === goldenSampleId);
+    if (!target) return res.status(404).json({ ok: false, error: '请先选择或上传一份黄金标杆简历' });
+    const config = store.getRawConfig();
+    const blueprint = await llm.extractGoldenBlueprint(config, {
+      fileName: target.fileName,
+      format: target.format,
+      rawText: target.rawText,
+      modelOverride
+    });
+    res.json({ ok: true, blueprint, usedModel: blueprint._usedModel || '' });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// 按「黄金标杆蓝图」+「用户真实素材」生成主简历结构化内容
+app.post('/api/master-builder/generate', async (req, res) => {
+  try {
+    const { goldenSampleId, blueprint, sourceResumeText, selectedKnowledgeIds, extraNotes, modelOverride } = req.body || {};
+    if (!blueprint || !Array.isArray(blueprint.sections) || !blueprint.sections.length) {
+      return res.status(400).json({ ok: false, error: '请先提取并确认黄金标杆排版蓝图' });
+    }
+    const config = store.getRawConfig();
+    const gs = store.getGoldenSet();
+    const goldenSample = gs.samples.find((s) => s.id === goldenSampleId) || null;
+    const kb = store.getKnowledge();
+    const idSet = new Set(Array.isArray(selectedKnowledgeIds) ? selectedKnowledgeIds : []);
+    const selectedKnowledge = (kb.projects || []).filter((p) => idSet.has(p.id) && String(p.content || '').trim());
+
+    const draft = await llm.buildMasterFromBlueprint(config, {
+      blueprint,
+      goldenSample,
+      sourceResumeText,
+      selectedKnowledge,
+      extraNotes,
+      modelOverride
+    });
+    res.json({ ok: true, draft, usedModel: draft._usedModel || '' });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // 项目深度素材库（MD/TXT 项目档案，专供 AI 深度了解项目）
 app.get('/api/knowledge', (req, res) => {
   res.json({ ok: true, knowledge: store.getKnowledge() });

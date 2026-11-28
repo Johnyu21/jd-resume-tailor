@@ -1303,6 +1303,145 @@ body.exporting-png .ai-diff-panel {
   white-space: nowrap;
 }
 
+/* ===== 主简历制作板块（蓝图顺序卡片与结构化预览） ===== */
+.ai-tabs {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.ai-tabs::-webkit-scrollbar {
+  display: none;
+}
+.ai-tab {
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding: 10px 9px;
+  font-size: 12.5px;
+}
+.ai-bp-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  background: #f8fafc;
+  margin-bottom: 6px;
+}
+.ai-bp-order {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #2563eb;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.ai-bp-kind {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #e0e7ff;
+  color: #3730a3;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.ai-kb-check-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #f8fafc;
+  margin-bottom: 5px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.ai-mb-preview-sec {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 9px 11px;
+  margin-bottom: 8px;
+  background: #ffffff;
+}
+
+/* ===== 通用「↕ 顺序排版」面板（主简历 & JD 副模板通用） ===== */
+.ai-reorder-panel {
+  margin-top: 8px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 12px 14px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
+}
+.ai-reorder-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr;
+  gap: 12px;
+}
+@media (max-width: 760px) {
+  .ai-reorder-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.ai-reorder-col {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #f8fafc;
+}
+.ai-reorder-col-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ai-reorder-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  margin-bottom: 6px;
+}
+.ai-reorder-row:last-child {
+  margin-bottom: 0;
+}
+.ai-reorder-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  color: #1e293b;
+}
+.ai-reorder-btns {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+body.exporting-png .ai-reorder-panel {
+  display: none !important;
+}
+@media print {
+  .ai-reorder-panel {
+    display: none !important;
+  }
+}
+
 /* 拖拽上传主简历 HTML 的全屏遮罩 */
 .ai-file-drop-overlay {
   position: fixed;

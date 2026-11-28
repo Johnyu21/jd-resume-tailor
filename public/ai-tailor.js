@@ -17,6 +17,7 @@
     masterWarnedOnce: false,
     openTabs: [],
     diffMode: false,
+    reorderOpen: false,
     isSwitchingDoc: false,
     autoSaveTimer: null,
     currentInboxId: null,
@@ -27,6 +28,14 @@
     currentProposal: null,
     currentEvaluation: null,
     evalExpanded: true,
+    masterBackup: { hasBackup: false, backedUpAt: null },
+    mbState: {
+      goldenSampleId: '',
+      blueprint: null,
+      draft: null,
+      checkedSections: {},
+      selectedKbIds: {}
+    },
     selection: null,
     pastedImageDataUrl: ''
   };
@@ -236,9 +245,17 @@
     for (const sec of sections) {
       const title = cleanCloneText(sec.querySelector('.section-ribbon'));
       if (!title.includes('项目')) continue;
-      sec.querySelectorAll('.entry').forEach((entry) => result.push(entry));
+      sec.querySelectorAll(':scope > .section-content > .entry').forEach((entry) => {
+        if (!isContinuationEntry(entry)) result.push(entry);
+      });
     }
     return result;
+  }
+
+  function isContinuationEntry(entry) {
+    if (!entry) return false;
+    if (entry.dataset && entry.dataset.contEntry) return true;
+    return !entry.querySelector(':scope > .entry-head-3, :scope > .entry-head-2, :scope > .entry-head');
   }
 
   function extractSkeletonFromRoot(root) {
@@ -268,12 +285,31 @@
     }
 
     const projects = [];
+    const projByEntryId = new Map();
     const projEntries = [];
     for (const sec of root.querySelectorAll('.section')) {
       if (!cleanCloneText(sec.querySelector('.section-ribbon')).includes('项目')) continue;
-      sec.querySelectorAll('.entry').forEach((entry) => projEntries.push(entry));
+      sec.querySelectorAll(':scope > .section-content > .entry').forEach((entry) => projEntries.push(entry));
     }
-    projEntries.forEach((entry, idx) => {
+    projEntries.forEach((entry) => {
+      if (isContinuationEntry(entry)) {
+        const parentProj =
+          (entry.dataset?.contEntry && projByEntryId.get(entry.dataset.contEntry)) ||
+          projects[projects.length - 1];
+        if (parentProj) {
+          entry.querySelectorAll('ul.bullet-list > li').forEach((li) => {
+            const { title, detail } = splitBoldItem(li);
+            if (!title && !detail) return;
+            parentProj.bullets.push({
+              id: `p${projects.indexOf(parentProj) + 1}_b${parentProj.bullets.length + 1}`,
+              title,
+              detail
+            });
+          });
+        }
+        return;
+      }
+      const idx = projects.length;
       const headSpans = entry.querySelectorAll('.entry-head-3 > span');
       const time = cleanCloneText(headSpans[0]);
       const name = cleanCloneText(headSpans[1]);
@@ -284,8 +320,8 @@
         const text = cleanCloneText(kv);
         if (text.startsWith('技术栈')) {
           techStack = text.replace(/^技术栈[：:]\s*/, '').trim();
-        } else if (text.startsWith('项目背景') || text.startsWith('项目简介')) {
-          background = text.replace(/^(项目背景|项目简介)[：:]\s*/, '').trim();
+        } else if (text.startsWith('项目背景') || text.startsWith('项目简介') || text.startsWith('项目介绍')) {
+          background = text.replace(/^(项目背景|项目简介|项目介绍)[：:]\s*/, '').trim();
         }
       });
       const bullets = [];
@@ -294,7 +330,7 @@
         if (!title && !detail) return;
         bullets.push({ id: `p${idx + 1}_b${bIdx + 1}`, title, detail });
       });
-      projects.push({
+      const projObj = {
         id: `proj_${idx + 1}`,
         time,
         name,
@@ -302,7 +338,9 @@
         techStack,
         background,
         bullets
-      });
+      };
+      projects.push(projObj);
+      if (entry.dataset?.entryId) projByEntryId.set(entry.dataset.entryId, projObj);
     });
 
     return { targetRole, skills, projects };
@@ -353,7 +391,12 @@
       }
     }
 
-    // 3. 项目经历（按真实骨架一一对应回填）
+    // 3. 项目经历（先缝合跨页碎片，再按真实骨架一一对应回填）
+    document.querySelectorAll('#pagesContainer .section').forEach((sec) => {
+      if (cleanCloneText(sec.querySelector('.section-ribbon')).includes('项目')) {
+        stitchSplitEntriesInSectionContent(sec.querySelector(':scope > .section-content'));
+      }
+    });
     const domEntries = findProjectEntries();
     if (Array.isArray(proposal.projects)) {
       proposal.projects.forEach((proj, idx) => {
@@ -371,6 +414,16 @@
           entry.querySelectorAll('.kv-line').forEach((kv) => {
             if (cleanCloneText(kv).startsWith('技术栈')) {
               kv.innerHTML = `<strong>技术栈：</strong>${escHtml(proj.techStack.suggested)}`;
+            }
+          });
+        }
+
+        // 项目背景（若勾选，写入更饱满的立项级项目背景）
+        if (selection.projectBg?.[proj.id] && proj.background) {
+          entry.querySelectorAll('.kv-line').forEach((kv) => {
+            const t = cleanCloneText(kv);
+            if (t.startsWith('项目背景') || t.startsWith('项目简介') || t.startsWith('项目介绍')) {
+              kv.innerHTML = `<strong>项目背景：</strong>${escHtml(proj.background)}`;
             }
           });
         }
@@ -404,6 +457,7 @@
       targetRole: proposal.targetRole?.origin !== 'ai_expanded',
       skills: {},
       projectTech: {},
+      projectBg: {},
       projectBullets: {}
     };
     (proposal.skills || []).forEach((s) => {
@@ -411,6 +465,7 @@
     });
     (proposal.projects || []).forEach((p) => {
       sel.projectTech[p.id] = p.techStack?.origin !== 'ai_expanded';
+      sel.projectBg[p.id] = Boolean(p.background);
       (p.bullets || []).forEach((b) => {
         sel.projectBullets[b.id] = b.origin !== 'ai_expanded';
       });
@@ -433,6 +488,7 @@
         <button type="button" class="ai-drawer-close" id="aiDrawerClose" title="关闭">×</button>
       </div>
       <div class="ai-tabs">
+        <button type="button" class="ai-tab" data-tab="master-builder">主简历制作</button>
         <button type="button" class="ai-tab active" data-tab="tailor">JD 定制</button>
         <button type="button" class="ai-tab" data-tab="knowledge">项目素材库</button>
         <button type="button" class="ai-tab" data-tab="inbox">收件箱 <span class="inbox-badge" id="aiTabInboxBadge" style="display:none">0</span></button>
@@ -440,6 +496,74 @@
         <button type="button" class="ai-tab" data-tab="settings">设置</button>
       </div>
       <div class="ai-drawer-body">
+        <!-- Tab 0: 主简历制作（按黄金标杆模块顺序与排版构建主简历） -->
+        <div class="ai-panel" id="aiPanel-master-builder">
+          <div class="ai-safety-banner">
+            <strong>按黄金标杆做主简历：</strong>严格复刻所选标杆的<strong>模块顺序与排版结构</strong>（如「相关技能 → 工作经历 → 项目经历 → 教育背景 → 自我评价」），保留你的「基本信息与证件照」，写入前自动备份旧主简历。
+          </div>
+
+          <div class="ai-card">
+            <div class="ai-card-title">
+              <span>① 选择黄金标杆 & 排版蓝图</span>
+              <label class="ai-btn ai-btn-sm" style="cursor:pointer;">
+                📤 上传新标杆
+                <input type="file" id="mbUploadGoldenInput" accept=".pdf,.docx,.html,.htm,.png,.jpg,.jpeg,.webp" style="display:none;" />
+              </label>
+            </div>
+            <div class="ai-row" style="align-items:center;">
+              <select class="ai-input" id="mbGoldenSelect" style="flex:1;">
+                <option value="">请选择一份 Golden Set 标杆简历...</option>
+              </select>
+              <button type="button" class="ai-btn ai-btn-primary ai-btn-sm" id="btnExtractBlueprint" style="flex:0 0 auto;">🔍 提取标杆蓝图</button>
+            </div>
+            <div id="mbBlueprintBusySlot"></div>
+            <div id="mbBlueprintArea" style="margin-top:8px;"></div>
+          </div>
+
+          <div class="ai-card">
+            <div class="ai-card-title">
+              <span>② 输入你的真实个人素材（混合来源）</span>
+              <div style="display:flex;gap:5px;">
+                <button type="button" class="ai-btn ai-btn-sm" id="btnMbReadCanvas">📄 读取当前画布</button>
+                <label class="ai-btn ai-btn-sm" style="cursor:pointer;">
+                  📤 上传旧简历
+                  <input type="file" id="mbOldResumeInput" accept=".pdf,.docx,.html,.htm,.png,.jpg,.jpeg,.webp" style="display:none;" />
+                </label>
+              </div>
+            </div>
+            <div id="mbOldResumeBusySlot"></div>
+            <label class="ai-field-label">旧简历 / 当前画布正文（可自由补充或修改）</label>
+            <textarea class="ai-textarea" id="mbSourceResumeText" placeholder="点击上方「读取当前画布」或「上传旧简历 (PDF/DOCX/HTML/PNG)」，也可直接粘贴你的个人经历..."></textarea>
+
+            <div style="margin-top:8px;">
+              <label class="ai-field-label">勾选要纳入主简历的「项目深度素材库」</label>
+              <div id="mbKbCheckList"></div>
+            </div>
+
+            <div style="margin-top:8px;">
+              <label class="ai-field-label">补充说明 / 目标方向（可选）</label>
+              <input class="ai-input" id="mbExtraNotes" placeholder="例如：主攻 AI 应用工程师，重点突出 RAG、Agent 与工程落地能力" />
+            </div>
+
+            <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;">
+              <select class="ai-quick-model-select" id="mbQuickModel" title="临时切换本次制作主简历使用的模型">
+                <option value="">✍️ 模型：默认生成路由</option>
+              </select>
+              <button type="button" class="ai-btn ai-btn-primary" id="btnGenerateMasterDraft">🚀 按标杆蓝图生成主简历</button>
+            </div>
+            <div id="mbGenerateBusySlot"></div>
+          </div>
+
+          <div id="mbPreviewArea"></div>
+
+          <div class="ai-card" id="mbBackupCard" style="display:none;">
+            <div class="ai-card-title" style="margin-bottom:0;">
+              <span class="ai-hint" id="mbBackupText"></span>
+              <button type="button" class="ai-btn ai-btn-sm" id="btnRestoreMasterBackup">↺ 恢复上次备份</button>
+            </div>
+          </div>
+        </div>
+
         <!-- Tab 1: JD 定制与审核 -->
         <div class="ai-panel active" id="aiPanel-tailor">
           <div class="ai-safety-banner">
@@ -873,6 +997,18 @@
                 </div>
               </label>
             </div>
+            ${
+              proj.background
+                ? `<div class="ai-review-item origin-rewritten">
+                    <label class="ai-review-head">
+                      <input type="checkbox" data-kind="bg" data-id="${escHtml(proj.id)}" ${sel.projectBg?.[proj.id] !== false ? 'checked' : ''} />
+                      <div class="ai-review-content">
+                        <span class="ai-origin-tag ai-origin-rewritten">立项背景</span><strong>项目背景：</strong>${escHtml(proj.background)}
+                      </div>
+                    </label>
+                  </div>`
+                : ''
+            }
             ${bulletsHtml}
           </div>`;
       })
@@ -920,6 +1056,10 @@
         if (kind === 'targetRole') state.selection.targetRole = cb.checked;
         else if (kind === 'skill') state.selection.skills[id] = cb.checked;
         else if (kind === 'tech') state.selection.projectTech[id] = cb.checked;
+        else if (kind === 'bg') {
+          if (!state.selection.projectBg) state.selection.projectBg = {};
+          state.selection.projectBg[id] = cb.checked;
+        }
         else if (kind === 'bullet') state.selection.projectBullets[id] = cb.checked;
       });
     });
@@ -1866,6 +2006,7 @@
         renderKnowledgeList();
       });
     });
+    renderMasterBuilderOptions();
   }
 
   // ===== 6. 数据加载与渲染 =====
@@ -1924,15 +2065,17 @@
 
   function renderQuickModelSelects() {
     const models = (state.config?.models || []).filter((m) => m.id);
-    const tailorSel = document.getElementById('aiQuickTailorModel');
-    if (tailorSel) {
-      const prev = tailorSel.value;
-      const effTailor = getEffectiveModuleModel('tailor') || '未配置';
-      tailorSel.innerHTML =
-        `<option value="">✍️ 生成：默认 (${escHtml(effTailor)})</option>` +
-        models.map((m) => `<option value="${escHtml(m.id)}">✍️ ${escHtml(m.name || m.id)}</option>`).join('');
-      if (prev && models.some((m) => m.id === prev)) tailorSel.value = prev;
-    }
+    const effTailor = getEffectiveModuleModel('tailor') || '未配置';
+    const html =
+      `<option value="">✍️ 生成：默认 (${escHtml(effTailor)})</option>` +
+      models.map((m) => `<option value="${escHtml(m.id)}">✍️ ${escHtml(m.name || m.id)}</option>`).join('');
+    ['aiQuickTailorModel', 'mbQuickModel'].forEach((id) => {
+      const sel = document.getElementById(id);
+      if (!sel) return;
+      const prev = sel.value;
+      sel.innerHTML = html;
+      if (prev && models.some((m) => m.id === prev)) sel.value = prev;
+    });
   }
 
   function renderConfig() {
@@ -2051,6 +2194,7 @@
         showToast('已移除该 Golden 样本');
       });
     });
+    renderMasterBuilderOptions();
   }
 
   function renderEvalArea() {
@@ -2742,6 +2886,7 @@
           <div class="ai-doc-banner mode-master-dirty">
             <div>⚠️ <strong>正在修改「我的主简历」（尚未保存）</strong>· 修改不会自动覆盖底稿，保存前可随时撤回/重做</div>
             <div class="ai-doc-banner-actions">
+              <button type="button" class="ai-btn ai-btn-sm ${state.reorderOpen ? 'ai-btn-primary' : ''}" id="wsBtnToggleReorder">↕ 顺序排版</button>
               <button type="button" class="ai-btn ai-btn-sm" id="wsBtnMasterUndo" title="撤回上一步主简历修改（Ctrl + Z）">↶ 撤回</button>
               <button type="button" class="ai-btn ai-btn-sm" id="wsBtnMasterRedo" title="重做主简历修改（Ctrl + Y）">↷ 重做</button>
               <button type="button" class="ai-btn ai-btn-sm" id="wsBtnMasterDiscard" title="放弃未保存修改，恢复到上次保存的主简历">↺ 放弃修改</button>
@@ -2754,6 +2899,7 @@
           <div class="ai-doc-banner mode-master">
             <div>🏠 <strong>当前编辑：我的主简历</strong>（受保护基准底稿 · 修改需手动保存${revNote}${srcNote}）</div>
             <div class="ai-doc-banner-actions">
+              <button type="button" class="ai-btn ai-btn-sm ${state.reorderOpen ? 'ai-btn-primary' : ''}" id="wsBtnToggleReorder">↕ 顺序排版</button>
               <button type="button" class="ai-btn ai-btn-primary ai-btn-sm" id="wsBtnUploadMaster" title="上传本 13 套模板导出的 HTML 主简历">📂 上传主简历 HTML</button>
               <button type="button" class="ai-btn ai-btn-sm" id="wsBtnSyncMaster" title="保存主简历到后端（POST /api/master/save）">💾 保存主简历</button>
             </div>
@@ -2775,6 +2921,7 @@
             🎯 <strong>绑定岗位：${escHtml(activeSub.company)} · ${escHtml(activeSub.jobTitle)}</strong>${metaParts ? ' ｜ ' + escHtml(metaParts) : ''}${scoreText}${evalText}${linkHtml}
           </div>
           <div class="ai-doc-banner-actions">
+            <button type="button" class="ai-btn ai-btn-sm ${state.reorderOpen ? 'ai-btn-primary' : ''}" id="wsBtnToggleReorder">↕ 顺序排版</button>
             <button type="button" class="ai-btn ai-btn-sm ${state.diffMode ? 'ai-btn-primary' : ''}" id="wsBtnToggleDiff">${state.diffMode ? '✅ 退出 Diff 审阅' : '🔍 Diff 审阅（红删绿增）'}</button>
             <button type="button" class="ai-btn ai-btn-sm" id="wsBtnReview">📊 评测与面试要点</button>
             <button type="button" class="ai-btn ai-btn-sm" id="wsBtnResetFromMaster">↺ 从主简历重置</button>
@@ -2793,6 +2940,7 @@
         <button type="button" class="ai-btn ai-btn-sm" id="wsBtnHistory" style="flex-shrink:0;">📂 历史副模板 (<span id="aiHistoryCount">${state.archives.length}</span>)</button>
       </div>
       ${bannerHtml}
+      <div id="aiReorderPanelHost"></div>
     `;
 
     bar.querySelectorAll('[data-doc-tab]').forEach((el) => {
@@ -2831,7 +2979,14 @@
     bar.querySelector('#wsBtnSyncMaster')?.addEventListener('click', () => persistMasterFromDom(false));
     syncMasterUndoButtons();
 
+    bar.querySelector('#wsBtnToggleReorder')?.addEventListener('click', () => {
+      state.reorderOpen = !state.reorderOpen;
+      if (state.reorderOpen && state.diffMode) setDiffMode(false);
+      else renderWorkspaceBar();
+    });
+
     bar.querySelector('#wsBtnToggleDiff')?.addEventListener('click', () => {
+      if (!state.diffMode) state.reorderOpen = false;
       setDiffMode(!state.diffMode);
     });
 
@@ -2860,6 +3015,283 @@
     bar.querySelector('#wsBtnExportPdf')?.addEventListener('click', () => {
       setDiffMode(false);
       document.getElementById('btnPrint')?.click();
+    });
+
+    if (state.reorderOpen) {
+      renderReorderPanel();
+    }
+  }
+
+  // ===== 6.7 通用「↕ 顺序排版」引擎（主简历 & JD 副模板通用，支持跨页无缝换序） =====
+  function getBaseRibbonTitle(sec) {
+    return cleanCloneText(sec.querySelector(':scope > .section-header .section-ribbon'))
+      .replace(/（续）|\(续\)/g, '')
+      .trim();
+  }
+
+  function isBasicInfoSec(sec) {
+    if (!sec) return false;
+    if (sec.dataset.sectionKind === 'basic-info') return true;
+    return getBaseRibbonTitle(sec).includes('基本信息');
+  }
+
+  // 把大板块内被自动分页拆散的续接碎片（data-cont-entry 或无标题头 .entry）重新缝合回原项目/原经历
+  function stitchSplitEntriesInSectionContent(secContent) {
+    if (!secContent) return;
+    const allEntries = Array.from(secContent.querySelectorAll(':scope > .entry'));
+    const primaryById = new Map();
+    let lastPrimary = null;
+
+    for (const entry of allEntries) {
+      if (!isContinuationEntry(entry)) {
+        lastPrimary = entry;
+        if (entry.dataset?.entryId) primaryById.set(entry.dataset.entryId, entry);
+        continue;
+      }
+
+      const targetPrimary =
+        (entry.dataset?.contEntry && primaryById.get(entry.dataset.contEntry)) || lastPrimary;
+      if (!targetPrimary) continue;
+
+      // 缝合可能被拆出的 .kv-line
+      const targetUl =
+        targetPrimary.querySelector(':scope > .bullet-list') ||
+        (() => {
+          const u = document.createElement('ul');
+          u.className = 'bullet-list';
+          const tools = targetPrimary.querySelector(':scope > .entry-tools');
+          if (tools) targetPrimary.insertBefore(u, tools);
+          else targetPrimary.appendChild(u);
+          return u;
+        })();
+
+      entry.querySelectorAll(':scope > .kv-line').forEach((kv) => {
+        targetPrimary.insertBefore(kv, targetUl);
+      });
+      entry.querySelectorAll(':scope > .bullet-list > li').forEach((li) => {
+        targetUl.appendChild(li);
+      });
+      entry.remove();
+    }
+  }
+
+  // 读取当前画布的逻辑大板块（自动合并跨页的「XXX（续）」与跨页被拆散的续接项目碎片）
+  function scanLogicalSections() {
+    const allSecs = Array.from(window.pagesContainer.querySelectorAll('.page > .page-body > .section'));
+    const groups = [];
+    for (const sec of allSecs) {
+      if (isBasicInfoSec(sec)) continue;
+      const baseTitle = getBaseRibbonTitle(sec) || '未命名板块';
+      const last = groups[groups.length - 1];
+      if (last && last.baseTitle === baseTitle) {
+        last.domSections.push(sec);
+      } else {
+        groups.push({ baseTitle, domSections: [sec] });
+      }
+    }
+    return groups.map((g, idx) => {
+      const entries = [];
+      const entryById = new Map();
+      g.domSections.forEach((sec) => {
+        sec.querySelectorAll(':scope > .section-content > .entry').forEach((entry) => {
+          if (isContinuationEntry(entry)) {
+            const parent =
+              (entry.dataset?.contEntry && entryById.get(entry.dataset.contEntry)) ||
+              entries[entries.length - 1];
+            if (parent) {
+              parent.bulletCount += entry.querySelectorAll(':scope > .bullet-list > li').length;
+            }
+            return;
+          }
+          const spans = entry.querySelectorAll('.entry-head-3 > span');
+          const t1 = cleanCloneText(spans[0]);
+          const t2 = cleanCloneText(spans[1]);
+          const t3 = cleanCloneText(spans[2]);
+          const label = t2 || t1 || cleanCloneText(entry).slice(0, 28) || '未命名经历';
+          const sub = [t1, t3].filter(Boolean).join(' · ');
+          const item = {
+            el: entry,
+            label,
+            sub,
+            bulletCount: entry.querySelectorAll(':scope > .bullet-list > li').length
+          };
+          entries.push(item);
+          if (entry.dataset?.entryId) entryById.set(entry.dataset.entryId, item);
+        });
+      });
+      return { index: idx, baseTitle: g.baseTitle, domSections: g.domSections, entries };
+    });
+  }
+
+  // 合并所有跨页续接板块与项目碎片回第 1 页、按指定逻辑顺序重建并自动重排 A4 分页
+  async function commitLogicalReorder(mutatorFn, toastMsg) {
+    if (typeof window.pushHistory === 'function') window.pushHistory();
+
+    const pages = Array.from(window.pagesContainer.querySelectorAll('.page'));
+    const firstBody = pages[0]?.querySelector(':scope > .page-body');
+    if (!firstBody) return;
+
+    const allSecs = Array.from(window.pagesContainer.querySelectorAll('.page > .page-body > .section'));
+    const basicSec = allSecs.find(isBasicInfoSec) || null;
+
+    // 1. 合并每个逻辑大板块的（续）节点到其主节点中
+    const logical = [];
+    for (const sec of allSecs) {
+      if (sec === basicSec) continue;
+      const baseTitle = getBaseRibbonTitle(sec) || '未命名板块';
+      const last = logical[logical.length - 1];
+      if (last && last.baseTitle === baseTitle) {
+        const dstContent = last.primarySec.querySelector(':scope > .section-content');
+        const srcContent = sec.querySelector(':scope > .section-content');
+        if (dstContent && srcContent) {
+          while (srcContent.firstChild) dstContent.appendChild(srcContent.firstChild);
+        }
+        sec.remove();
+      } else {
+        const ribbon = sec.querySelector(':scope > .section-header .section-ribbon');
+        if (ribbon) ribbon.textContent = baseTitle;
+        logical.push({ baseTitle, primarySec: sec });
+      }
+    }
+
+    // 2. 关键：把每个大板块里被自动分页拆散的续接 .entry 碎片 100% 缝合回各自绑定的原项目/原经历
+    logical.forEach((item) => {
+      stitchSplitEntriesInSectionContent(item.primarySec.querySelector(':scope > .section-content'));
+    });
+
+    // 3. 执行顺序互换（此时每个大板块、每个项目都是 100% 完整绑定的一整块）
+    mutatorFn(logical);
+
+    // 清掉旧续页，把所有逻辑大板块按新顺序放入第 1 页并触发原生自动分页
+    pages.slice(1).forEach((p) => p.remove());
+    Array.from(firstBody.querySelectorAll(':scope > .section')).forEach((s) => {
+      if (s !== basicSec) s.remove();
+    });
+    logical.forEach((item) => firstBody.appendChild(item.primarySec));
+
+    if (typeof window.enhanceBlocks === 'function') window.enhanceBlocks(window.pagesContainer);
+    if (typeof window.bindPhotoUpload === 'function') window.bindPhotoUpload();
+    if (typeof window.autoReflowPages === 'function') window.autoReflowPages(true);
+    if (typeof window.updatePageNumbers === 'function') window.updatePageNumbers(true);
+    if (typeof window.pushHistory === 'function') window.pushHistory();
+    if (typeof window.saveDraft === 'function') window.saveDraft();
+
+    if (state.activeDocId === 'master') {
+      state.masterDirty = true;
+      renderWorkspaceBar();
+    } else {
+      await flushCurrentDocToBackend();
+      renderWorkspaceBar();
+    }
+    if (toastMsg) showToast(toastMsg);
+  }
+
+  function renderReorderPanel() {
+    const host = document.getElementById('aiReorderPanelHost');
+    if (!host || !state.reorderOpen) return;
+
+    const groups = scanLogicalSections();
+    const sectionsHtml = groups.length
+      ? groups
+          .map(
+            (g, i) => `
+            <div class="ai-reorder-row">
+              <div class="ai-reorder-label">
+                <span class="ai-bp-order" style="margin-right:6px;">${i + 1}</span>
+                <strong>${escHtml(g.baseTitle)}</strong>
+                ${g.entries.length > 0 ? `<span class="ai-hint">（${g.entries.length} 项）</span>` : ''}
+              </div>
+              <div class="ai-reorder-btns">
+                <button type="button" class="ai-btn ai-btn-sm" data-move-sec="${i}:-1" ${i === 0 ? 'disabled' : ''} title="上移此大板块">↑ 上移</button>
+                <button type="button" class="ai-btn ai-btn-sm" data-move-sec="${i}:1" ${i === groups.length - 1 ? 'disabled' : ''} title="下移此大板块">↓ 下移</button>
+              </div>
+            </div>`
+          )
+          .join('')
+      : '<div class="ai-hint">当前画布暂无可调序的大板块</div>';
+
+    // 右列：优先展示「项目经历」内所有项目，以及其它包含 ≥2 条经历的板块（如多段工作经历）
+    const multiEntryGroups = groups.filter((g) => g.baseTitle.includes('项目') || g.entries.length >= 2);
+    const entriesHtml = multiEntryGroups.length
+      ? multiEntryGroups
+          .map((g) => {
+            if (!g.entries.length) return '';
+            const rows = g.entries
+              .map(
+                (ent, ei) => `
+                <div class="ai-reorder-row">
+                  <div class="ai-reorder-label" title="${escHtml(ent.label)}">
+                    <span class="ai-bp-order" style="background:#059669;margin-right:6px;">${ei + 1}</span>
+                    <strong>${escHtml(ent.label)}</strong>
+                    ${ent.sub ? `<span class="ai-hint" style="margin-left:4px;">${escHtml(ent.sub)}</span>` : ''}
+                  </div>
+                  <div class="ai-reorder-btns">
+                    <button type="button" class="ai-btn ai-btn-sm" data-move-entry="${g.index}:${ei}:-1" ${ei === 0 ? 'disabled' : ''} title="前移此项">↑</button>
+                    <button type="button" class="ai-btn ai-btn-sm" data-move-entry="${g.index}:${ei}:1" ${ei === g.entries.length - 1 ? 'disabled' : ''} title="后移此项">↓</button>
+                  </div>
+                </div>`
+              )
+              .join('');
+            return `<div style="margin-bottom:8px;"><div class="ai-hint" style="font-weight:700;color:#334155;margin-bottom:4px;">📌 ${escHtml(g.baseTitle)}内部顺序</div>${rows}</div>`;
+          })
+          .join('')
+      : '<div class="ai-hint">当前简历中没有多项项目或经历可调整顺序。</div>';
+
+    host.innerHTML = `
+      <div class="ai-reorder-panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-weight:700;color:#0f172a;">↕ 顺序排版控制台（主简历 / 副模板通用 · 点击即跨页自动重排分页）</span>
+          <button type="button" class="ai-btn ai-btn-sm" id="btnCloseReorderPanel">收起</button>
+        </div>
+        <div class="ai-reorder-grid">
+          <div class="ai-reorder-col">
+            <div class="ai-reorder-col-title">
+              <span>大板块前后顺序</span>
+              <span class="ai-hint">基本信息固定置顶</span>
+            </div>
+            ${sectionsHtml}
+          </div>
+          <div class="ai-reorder-col">
+            <div class="ai-reorder-col-title">
+              <span>项目 / 经历前后顺序</span>
+              <span class="ai-hint">跨页项目也能一键互换</span>
+            </div>
+            ${entriesHtml}
+          </div>
+        </div>
+      </div>
+    `;
+
+    host.querySelector('#btnCloseReorderPanel')?.addEventListener('click', () => {
+      state.reorderOpen = false;
+      renderWorkspaceBar();
+    });
+
+    host.querySelectorAll('[data-move-sec]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const [idx, delta] = btn.dataset.moveSec.split(':').map(Number);
+        commitLogicalReorder((logical) => {
+          const target = idx + delta;
+          if (target < 0 || target >= logical.length) return;
+          [logical[idx], logical[target]] = [logical[target], logical[idx]];
+        }, '✅ 已交换大板块顺序并自动重排分页');
+      });
+    });
+
+    host.querySelectorAll('[data-move-entry]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const [secIdx, entryIdx, delta] = btn.dataset.moveEntry.split(':').map(Number);
+        commitLogicalReorder((logical) => {
+          const sec = logical[secIdx]?.primarySec;
+          const content = sec?.querySelector(':scope > .section-content');
+          if (!content) return;
+          const entries = Array.from(content.querySelectorAll(':scope > .entry')).filter((e) => !isContinuationEntry(e));
+          const target = entryIdx + delta;
+          if (target < 0 || target >= entries.length) return;
+          if (delta < 0) content.insertBefore(entries[entryIdx], entries[target]);
+          else content.insertBefore(entries[target], entries[entryIdx]);
+        }, '✅ 已整块交换项目/经历顺序并自动重排分页');
+      });
     });
   }
 
@@ -3297,6 +3729,573 @@
     });
   }
 
+  // ===== 6.9 「主简历制作」板块（按黄金标杆蓝图重排并生成主简历） =====
+  const MB_KIND_LABELS = {
+    bullets: '要点列表',
+    work_entries: '工作经历',
+    project_entries: '项目经历',
+    edu_entries: '教育背景',
+    paragraph: '段落文本'
+  };
+
+  function renderMasterBuilderOptions() {
+    const sel = document.getElementById('mbGoldenSelect');
+    if (sel) {
+      const samples = state.goldenSet?.samples || [];
+      const cur = state.mbState.goldenSampleId || sel.value || '';
+      sel.innerHTML =
+        '<option value="">请选择一份 Golden Set 标杆简历...</option>' +
+        samples
+          .map((s) => `<option value="${escHtml(s.id)}">[${escHtml(s.format)}] ${escHtml(s.fileName)}（${escHtml(s.tag || '通用')}）</option>`)
+          .join('');
+      if (cur && samples.some((s) => s.id === cur)) {
+        sel.value = cur;
+        state.mbState.goldenSampleId = cur;
+      } else if (samples.length && !state.mbState.goldenSampleId) {
+        sel.value = samples[0].id;
+        state.mbState.goldenSampleId = samples[0].id;
+      }
+    }
+
+    const kbWrap = document.getElementById('mbKbCheckList');
+    if (kbWrap) {
+      const projects = (state.knowledge?.projects || []).filter((p) => String(p.content || '').trim());
+      if (!projects.length) {
+        kbWrap.innerHTML = '<div class="ai-hint">暂无项目深度素材（可先去「项目素材库」导入或粘贴项目 MD）。</div>';
+      } else {
+        kbWrap.innerHTML = projects
+          .map((p) => {
+            if (state.mbState.selectedKbIds[p.id] === undefined) state.mbState.selectedKbIds[p.id] = true;
+            const checked = state.mbState.selectedKbIds[p.id] ? 'checked' : '';
+            return `
+              <label class="ai-kb-check-row">
+                <input type="checkbox" data-mb-kb="${escHtml(p.id)}" ${checked} />
+                <strong style="flex:1;">${escHtml(p.name || '未命名项目')}</strong>
+                <span class="ai-hint">${(p.content || '').length} 字</span>
+              </label>`;
+          })
+          .join('');
+        kbWrap.querySelectorAll('[data-mb-kb]').forEach((cb) => {
+          cb.addEventListener('change', () => {
+            state.mbState.selectedKbIds[cb.dataset.mbKb] = cb.checked;
+          });
+        });
+      }
+    }
+
+    const backupCard = document.getElementById('mbBackupCard');
+    const backupText = document.getElementById('mbBackupText');
+    if (backupCard && backupText) {
+      if (state.masterBackup?.hasBackup) {
+        backupCard.style.display = 'block';
+        const t = state.masterBackup.backedUpAt ? new Date(state.masterBackup.backedUpAt).toLocaleString() : '';
+        backupText.textContent = `已保留上次应用前的旧主简历备份${t ? `（${t}）` : ''}`;
+      } else {
+        backupCard.style.display = 'none';
+      }
+    }
+  }
+
+  function renderMbBlueprint() {
+    const area = document.getElementById('mbBlueprintArea');
+    if (!area) return;
+    const bp = state.mbState.blueprint;
+    if (!bp || !Array.isArray(bp.sections)) {
+      area.innerHTML = '<div class="ai-hint">选定一份黄金标杆后点击「🔍 提取标杆蓝图」，系统会自动识别除「基本信息」外的所有模块顺序与排版类型。</div>';
+      return;
+    }
+
+    const rowsHtml = bp.sections
+      .map((sec, idx) => {
+        const kindOpts = Object.entries(MB_KIND_LABELS)
+          .map(([k, lbl]) => `<option value="${k}" ${sec.kind === k ? 'selected' : ''}>${lbl}</option>`)
+          .join('');
+        return `
+          <div class="ai-bp-item">
+            <span class="ai-bp-order">${idx + 1}</span>
+            <input class="ai-input" data-bp-title="${idx}" value="${escHtml(sec.title)}" style="flex:1;padding:4px 7px;font-size:12px;" />
+            <select class="ai-input" data-bp-kind="${idx}" style="width:94px;flex:0 0 auto;padding:4px 5px;font-size:11.5px;">${kindOpts}</select>
+            <button type="button" class="ai-btn ai-btn-sm" data-bp-up="${idx}" ${idx === 0 ? 'disabled' : ''} title="上移">↑</button>
+            <button type="button" class="ai-btn ai-btn-sm" data-bp-down="${idx}" ${idx === bp.sections.length - 1 ? 'disabled' : ''} title="下移">↓</button>
+            <button type="button" class="ai-btn ai-btn-danger ai-btn-sm" data-bp-del="${idx}" title="移除">×</button>
+          </div>`;
+      })
+      .join('');
+
+    area.innerHTML = `
+      <div class="ai-hint" style="margin-bottom:6px;color:#0f172a;">
+        <strong>标杆结构蓝图：</strong>${escHtml(bp.summary || '已提取标杆模块顺序')}
+        ${bp._usedModel ? `<span class="ai-model-tag" style="margin-left:5px;">🏆 ${escHtml(bp._usedModel)}</span>` : ''}
+      </div>
+      ${rowsHtml}
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+        <span class="ai-hint">基本信息（含证件照）固定置顶，上方为后续模块的精确顺序</span>
+        <button type="button" class="ai-btn ai-btn-sm" id="btnBpAddSec">+ 追加模块</button>
+      </div>
+    `;
+
+    area.querySelectorAll('[data-bp-title]').forEach((inp) => {
+      inp.addEventListener('input', () => {
+        const i = Number(inp.dataset.bpTitle);
+        if (state.mbState.blueprint.sections[i]) state.mbState.blueprint.sections[i].title = inp.value;
+      });
+    });
+    area.querySelectorAll('[data-bp-kind]').forEach((sel) => {
+      sel.addEventListener('change', () => {
+        const i = Number(sel.dataset.bpKind);
+        if (state.mbState.blueprint.sections[i]) state.mbState.blueprint.sections[i].kind = sel.value;
+      });
+    });
+    area.querySelectorAll('[data-bp-up]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const i = Number(btn.dataset.bpUp);
+        if (i <= 0) return;
+        const arr = state.mbState.blueprint.sections;
+        [arr[i - 1], arr[i]] = [arr[i], arr[i - 1]];
+        renderMbBlueprint();
+      });
+    });
+    area.querySelectorAll('[data-bp-down]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const i = Number(btn.dataset.bpDown);
+        const arr = state.mbState.blueprint.sections;
+        if (i >= arr.length - 1) return;
+        [arr[i], arr[i + 1]] = [arr[i + 1], arr[i]];
+        renderMbBlueprint();
+      });
+    });
+    area.querySelectorAll('[data-bp-del]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        state.mbState.blueprint.sections.splice(Number(btn.dataset.bpDel), 1);
+        renderMbBlueprint();
+      });
+    });
+    area.querySelector('#btnBpAddSec')?.addEventListener('click', () => {
+      state.mbState.blueprint.sections.push({ title: '补充模块', kind: 'bullets', styleNote: '' });
+      renderMbBlueprint();
+    });
+  }
+
+  function renderMbPreview() {
+    const area = document.getElementById('mbPreviewArea');
+    if (!area) return;
+    const draft = state.mbState.draft;
+    if (!draft || !Array.isArray(draft.sections)) {
+      area.innerHTML = '';
+      return;
+    }
+
+    const secsHtml = draft.sections
+      .map((sec, idx) => {
+        if (state.mbState.checkedSections[idx] === undefined) state.mbState.checkedSections[idx] = true;
+        const checked = state.mbState.checkedSections[idx] ? 'checked' : '';
+        let bodyHtml = '';
+        if (sec.kind === 'bullets') {
+          bodyHtml = (sec.items || [])
+            .map((it) => `<div class="ai-hint" style="margin-top:4px;color:#1e293b;">• ${it.label ? `<strong>${escHtml(it.label)}：</strong>` : ''}${escHtml(it.text)}</div>`)
+            .join('');
+        } else if (sec.kind === 'work_entries') {
+          bodyHtml = (sec.entries || [])
+            .map((e) => {
+              const bs = (e.bullets || [])
+                .map((b) => `<div class="ai-hint" style="padding-left:10px;color:#334155;">• ${b.label ? `<strong>${escHtml(b.label)}：</strong>` : ''}${escHtml(b.text)}</div>`)
+                .join('');
+              return `<div style="margin-top:6px;"><strong>${escHtml(e.col2 || '')}</strong> · ${escHtml(e.col3 || '')} <span class="ai-hint">(${escHtml(e.col1 || '')})</span>${bs}</div>`;
+            })
+            .join('');
+        } else if (sec.kind === 'project_entries') {
+          bodyHtml = (sec.entries || [])
+            .map((e) => {
+              const bs = (e.bullets || [])
+                .map((b) => `<div class="ai-hint" style="padding-left:10px;color:#334155;">• ${b.label ? `<strong>${escHtml(b.label)}：</strong>` : ''}${escHtml(b.text)}</div>`)
+                .join('');
+              return `<div style="margin-top:6px;"><strong>${escHtml(e.col2 || '')}</strong> · ${escHtml(e.col3 || '')} <span class="ai-hint">(${escHtml(e.col1 || '')})</span>${e.techStack ? `<div class="ai-hint"><strong>技术栈：</strong>${escHtml(e.techStack)}</div>` : ''}${bs}</div>`;
+            })
+            .join('');
+        } else if (sec.kind === 'edu_entries') {
+          bodyHtml = (sec.entries || [])
+            .map((e) => {
+              const kvs = (e.kvLines || [])
+                .map((kv) => `<div class="ai-hint"><strong>${escHtml(kv.label)}：</strong>${escHtml(kv.text)}</div>`)
+                .join('');
+              return `<div style="margin-top:6px;"><strong>${escHtml(e.col2 || '')}</strong> · ${escHtml(e.col3 || '')} <span class="ai-hint">(${escHtml(e.col1 || '')})</span>${kvs}</div>`;
+            })
+            .join('');
+        } else {
+          bodyHtml = `<div class="ai-hint" style="margin-top:4px;color:#1e293b;">${escHtml(sec.text || '')}</div>`;
+        }
+
+        return `
+          <div class="ai-mb-preview-sec">
+            <label style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;">
+              <span style="display:flex;align-items:center;gap:6px;">
+                <input type="checkbox" data-mb-sec-check="${idx}" ${checked} />
+                <strong>${idx + 1}. ${escHtml(sec.title)}</strong>
+              </span>
+              <span class="ai-bp-kind">${escHtml(MB_KIND_LABELS[sec.kind] || sec.kind)}</span>
+            </label>
+            ${bodyHtml}
+          </div>`;
+      })
+      .join('');
+
+    area.innerHTML = `
+      <div class="ai-card">
+        <div class="ai-card-title">
+          <span>③ 主简历预览（按标杆顺序）${draft._usedModel ? `<span class="ai-model-tag" style="margin-left:5px;">✍️ ${escHtml(draft._usedModel)}</span>` : ''}</span>
+        </div>
+        ${draft.notes ? `<div class="ai-hint" style="margin-bottom:8px;">${escHtml(draft.notes)}</div>` : ''}
+        ${secsHtml}
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;">
+          <button type="button" class="ai-btn ai-btn-success" id="btnApplyMasterDraft">✅ 应用为我的主简历（保留基本信息与证件照）</button>
+        </div>
+      </div>
+    `;
+
+    area.querySelectorAll('[data-mb-sec-check]').forEach((cb) => {
+      cb.addEventListener('change', () => {
+        state.mbState.checkedSections[Number(cb.dataset.mbSecCheck)] = cb.checked;
+      });
+    });
+
+    area.querySelector('#btnApplyMasterDraft')?.addEventListener('click', applyMasterDraftToDom);
+  }
+
+  function buildNativeSectionHtml(sec) {
+    let toolsHtml = `<button class="mini-btn del" onclick="removeSection(this)">删除模块</button>`;
+    if (sec.kind === 'bullets') {
+      toolsHtml = `<button class="mini-btn" onclick="addBullet(this)">+ 要点</button>${toolsHtml}`;
+    } else if (sec.kind === 'work_entries' || sec.kind === 'project_entries') {
+      toolsHtml = `<button class="mini-btn" onclick="addBullet(this)">+ 要点</button><button class="mini-btn" onclick="addEntry(this, '3col')">+ 经历</button>${toolsHtml}`;
+    } else if (sec.kind === 'edu_entries') {
+      toolsHtml = `<button class="mini-btn" onclick="addEntry(this, '3col')">+ 经历</button>${toolsHtml}`;
+    }
+
+    let contentHtml = '';
+    if (sec.kind === 'bullets') {
+      const lis = (sec.items || [])
+        .map((it) => `<li>${it.label ? `<strong>${escHtml(it.label)}：</strong>` : ''}${escHtml(it.text || '')}</li>`)
+        .join('');
+      contentHtml = `<ul class="bullet-list">${lis}</ul>`;
+    } else if (sec.kind === 'work_entries') {
+      contentHtml = (sec.entries || [])
+        .map((e) => {
+          const lis = (e.bullets || [])
+            .map((b) => `<li>${b.label ? `<strong>${escHtml(b.label)}：</strong>` : ''}${escHtml(b.text || '')}</li>`)
+            .join('');
+          return `
+            <div class="entry">
+              <div class="entry-head-3">
+                <span contenteditable="true">${escHtml(e.col1 || '')}</span>
+                <span class="col-center" contenteditable="true">${escHtml(e.col2 || '')}</span>
+                <span class="col-right" contenteditable="true">${escHtml(e.col3 || '')}</span>
+              </div>
+              <ul class="bullet-list">${lis}</ul>
+            </div>`;
+        })
+        .join('');
+    } else if (sec.kind === 'project_entries') {
+      contentHtml = (sec.entries || [])
+        .map((e) => {
+          const lis = (e.bullets || [])
+            .map((b) => `<li>${b.label ? `<strong>${escHtml(b.label)}：</strong>` : ''}${escHtml(b.text || '')}</li>`)
+            .join('');
+          return `
+            <div class="entry">
+              <div class="entry-head-3">
+                <span contenteditable="true">${escHtml(e.col1 || '')}</span>
+                <span class="col-center" contenteditable="true">${escHtml(e.col2 || '')}</span>
+                <span class="col-right" contenteditable="true">${escHtml(e.col3 || '')}</span>
+              </div>
+              ${e.techStack ? `<div class="kv-line"><strong>技术栈：</strong>${escHtml(e.techStack)}</div>` : ''}
+              ${e.background ? `<div class="kv-line"><strong>项目背景：</strong>${escHtml(e.background)}</div>` : ''}
+              <ul class="bullet-list">${lis}</ul>
+            </div>`;
+        })
+        .join('');
+    } else if (sec.kind === 'edu_entries') {
+      contentHtml = (sec.entries || [])
+        .map((e) => {
+          const kvs = (e.kvLines || [])
+            .map((kv) => `<div class="kv-line"><strong>${escHtml(kv.label || '')}：</strong>${escHtml(kv.text || '')}</div>`)
+            .join('');
+          return `
+            <div class="entry">
+              <div class="entry-head-3">
+                <span contenteditable="true">${escHtml(e.col1 || '')}</span>
+                <span class="col-center" contenteditable="true">${escHtml(e.col2 || '')}</span>
+                <span class="col-right" contenteditable="true">${escHtml(e.col3 || '')}</span>
+              </div>
+              ${kvs}
+            </div>`;
+        })
+        .join('');
+    } else {
+      contentHtml = `<div class="paragraph-text">${escHtml(sec.text || '')}</div>`;
+    }
+
+    return `
+      <div class="section">
+        <div class="section-tools">${toolsHtml}</div>
+        <div class="section-header">
+          <div class="section-ribbon-wrap">
+            <div class="section-ribbon" contenteditable="true">${escHtml(sec.title || '')}</div>
+            <div class="section-slashes"><span></span><span></span></div>
+          </div>
+          <div class="section-line"></div>
+        </div>
+        <div class="section-content">${contentHtml}</div>
+      </div>`;
+  }
+
+  async function applyMasterDraftToDom() {
+    const draft = state.mbState.draft;
+    if (!draft || !Array.isArray(draft.sections)) return;
+    const chosen = draft.sections.filter((_, idx) => state.mbState.checkedSections[idx] !== false);
+    if (!chosen.length) {
+      showToast('请至少勾选 1 个模块');
+      return;
+    }
+
+    // 1. 切回主简历标签并先自动备份旧主简历
+    if (state.activeDocId !== 'master') {
+      await switchDocumentTab('master');
+    }
+    try {
+      const bRes = await api('/api/master/backup', { method: 'POST' });
+      state.masterBackup = { hasBackup: bRes.hasBackup, backedUpAt: bRes.backedUpAt };
+    } catch {}
+
+    if (typeof window.pushHistory === 'function') window.pushHistory();
+
+    // 2. 严格保留第 1 页的「基本信息（含证件照）」，重建其余全部模块
+    const pages = Array.from(window.pagesContainer.querySelectorAll('.page'));
+    const firstPage = pages[0];
+    if (!firstPage) return;
+    const firstBody = firstPage.querySelector('.page-body');
+    if (!firstBody) return;
+
+    const basicSec =
+      firstBody.querySelector('.section[data-section-kind="basic-info"]') ||
+      Array.from(firstBody.querySelectorAll('.section')).find((s) =>
+        cleanCloneText(s.querySelector('.section-ribbon')).includes('基本信息')
+      );
+
+    // 移除多余旧续页，让 autoReflowPages 按新内容长度自动重新分页
+    pages.slice(1).forEach((p) => p.remove());
+
+    // 清除第 1 页中除基本信息外的所有旧模块
+    Array.from(firstBody.querySelectorAll('.section')).forEach((s) => {
+      if (s !== basicSec) s.remove();
+    });
+
+    // 若生成了建议求职意向，顺带更新基本信息中的求职意向
+    if (draft.targetRole && basicSec) {
+      const roleEl = findTargetRoleEl();
+      if (roleEl) roleEl.textContent = draft.targetRole;
+    }
+
+    // 按蓝图顺序插入所有新模块
+    const frag = document.createElement('div');
+    frag.innerHTML = chosen.map(buildNativeSectionHtml).join('');
+    while (frag.firstElementChild) {
+      firstBody.appendChild(frag.firstElementChild);
+    }
+
+    if (typeof window.enhanceBlocks === 'function') window.enhanceBlocks(window.pagesContainer);
+    if (typeof window.bindPhotoUpload === 'function') window.bindPhotoUpload();
+    if (typeof window.autoReflowPages === 'function') window.autoReflowPages(true);
+    if (typeof window.updatePageNumbers === 'function') window.updatePageNumbers(true);
+    if (typeof window.pushHistory === 'function') window.pushHistory();
+    if (typeof window.saveDraft === 'function') window.saveDraft();
+
+    await persistMasterFromDom(true);
+    renderMasterBuilderOptions();
+    renderWorkspaceBar();
+    showToast('✅ 已按黄金标杆顺序生成并保存为「我的主简历」（旧版已自动备份）');
+  }
+
+  function bindMasterBuilderEvents() {
+    let bpController = null;
+    let oldResController = null;
+    let genMasterController = null;
+
+    document.getElementById('mbGoldenSelect')?.addEventListener('change', (e) => {
+      state.mbState.goldenSampleId = e.target.value;
+    });
+
+    // 当场上传新黄金标杆（自动存入 Golden Set 并选中）
+    document.getElementById('mbUploadGoldenInput')?.addEventListener('change', async (e) => {
+      const f = e.target.files?.[0];
+      if (!f) return;
+      const cleanup = mountInlineLoading(document.getElementById('mbBlueprintBusySlot'), {
+        title: `正在解析标杆 ${f.name}...`,
+        model: getEffectiveModuleModel('goldenExtract')
+      });
+      try {
+        const base64Content = await fileToDataUrl(f);
+        const res = await api('/api/golden-set/upload', {
+          method: 'POST',
+          body: JSON.stringify({ fileName: f.name, base64Content, tag: '主简历蓝本' })
+        });
+        await loadGoldenSet();
+        if (res.sample?.id) {
+          state.mbState.goldenSampleId = res.sample.id;
+          renderMasterBuilderOptions();
+        }
+        showToast(`✅ 已导入新标杆：${f.name}，现在可点「提取标杆蓝图」`);
+      } catch (err) {
+        showToast(`上传标杆失败：${err.message}`);
+      } finally {
+        cleanup();
+        e.target.value = '';
+      }
+    });
+
+    // 提取标杆模块蓝图
+    document.getElementById('btnExtractBlueprint')?.addEventListener('click', async () => {
+      const sampleId = (document.getElementById('mbGoldenSelect')?.value || '').trim();
+      if (!sampleId) {
+        showToast('请先选择或上传一份黄金标杆简历');
+        return;
+      }
+      if (bpController) bpController.abort();
+      bpController = new AbortController();
+      const btn = document.getElementById('btnExtractBlueprint');
+      btn.disabled = true;
+      const cleanup = mountInlineLoading(document.getElementById('mbBlueprintBusySlot'), {
+        title: '正在分析黄金标杆的模块顺序与排版蓝图...',
+        model: getEffectiveModuleModel('goldenExtract'),
+        onCancel: () => bpController?.abort()
+      });
+      try {
+        const { blueprint } = await api('/api/master-builder/blueprint', {
+          method: 'POST',
+          signal: bpController.signal,
+          body: JSON.stringify({ goldenSampleId: sampleId })
+        });
+        state.mbState.blueprint = blueprint;
+        renderMbBlueprint();
+        showToast(`✅ 已提取 ${blueprint.sections?.length || 0} 个标杆模块顺序`);
+      } catch (err) {
+        if (err.name === 'AbortError') showToast('已取消提取蓝图');
+        else showToast(`提取蓝图失败：${err.message}`);
+      } finally {
+        cleanup();
+        bpController = null;
+        btn.disabled = false;
+      }
+    });
+
+    // 读取当前画布内容作为真实素材
+    document.getElementById('btnMbReadCanvas')?.addEventListener('click', () => {
+      const text = cleanCloneText(window.pagesContainer);
+      document.getElementById('mbSourceResumeText').value = text;
+      showToast('已读取当前简历画布正文');
+    });
+
+    // 上传旧简历（PDF/DOCX/HTML/PNG）解析为真实素材
+    document.getElementById('mbOldResumeInput')?.addEventListener('change', async (e) => {
+      const f = e.target.files?.[0];
+      if (!f) return;
+      if (oldResController) oldResController.abort();
+      oldResController = new AbortController();
+      const cleanup = mountInlineLoading(document.getElementById('mbOldResumeBusySlot'), {
+        title: `正在解析旧简历 ${f.name}...`,
+        model: /\.(png|jpe?g|webp)$/i.test(f.name) ? getEffectiveModuleModel('vision') : '本地解析',
+        onCancel: () => oldResController?.abort()
+      });
+      try {
+        const base64Content = await fileToDataUrl(f);
+        const res = await api('/api/parse-document', {
+          method: 'POST',
+          signal: oldResController.signal,
+          body: JSON.stringify({ fileName: f.name, base64Content })
+        });
+        document.getElementById('mbSourceResumeText').value = res.text || '';
+        showToast(`✅ 已解析旧简历（${res.format} · ${res.charCount} 字）`);
+      } catch (err) {
+        if (err.name === 'AbortError') showToast('已取消解析旧简历');
+        else showToast(`解析旧简历失败：${err.message}`);
+      } finally {
+        cleanup();
+        oldResController = null;
+        e.target.value = '';
+      }
+    });
+
+    // 按标杆蓝图生成主简历
+    document.getElementById('btnGenerateMasterDraft')?.addEventListener('click', async () => {
+      if (!state.mbState.blueprint?.sections?.length) {
+        showToast('请先在第 ① 步提取黄金标杆蓝图');
+        return;
+      }
+      const sourceResumeText = document.getElementById('mbSourceResumeText').value.trim();
+      const selectedKnowledgeIds = Object.entries(state.mbState.selectedKbIds)
+        .filter(([, v]) => v)
+        .map(([k]) => k);
+      const extraNotes = document.getElementById('mbExtraNotes').value.trim();
+      if (!sourceResumeText && !selectedKnowledgeIds.length && !extraNotes) {
+        showToast('请先在第 ② 步提供至少一项真实个人素材（旧简历 / 画布 / 项目素材库 / 补充说明）');
+        return;
+      }
+
+      if (genMasterController) genMasterController.abort();
+      genMasterController = new AbortController();
+      const btn = document.getElementById('btnGenerateMasterDraft');
+      const modelOverride = (document.getElementById('mbQuickModel')?.value || '').trim();
+      btn.disabled = true;
+      const cleanup = mountInlineLoading(document.getElementById('mbGenerateBusySlot'), {
+        title: '正在按黄金标杆顺序组装你的主简历...',
+        model: modelOverride || getEffectiveModuleModel('tailor'),
+        onCancel: () => genMasterController?.abort()
+      });
+
+      try {
+        const { draft } = await api('/api/master-builder/generate', {
+          method: 'POST',
+          signal: genMasterController.signal,
+          body: JSON.stringify({
+            goldenSampleId: state.mbState.goldenSampleId,
+            blueprint: state.mbState.blueprint,
+            sourceResumeText,
+            selectedKnowledgeIds,
+            extraNotes,
+            modelOverride
+          })
+        });
+        state.mbState.draft = draft;
+        state.mbState.checkedSections = {};
+        renderMbPreview();
+        showToast('✅ 主简历草稿已生成，请在下方预览确认后应用');
+      } catch (err) {
+        if (err.name === 'AbortError') showToast('已取消生成主简历');
+        else showToast(`生成主简历失败：${err.message}`);
+      } finally {
+        cleanup();
+        genMasterController = null;
+        btn.disabled = false;
+      }
+    });
+
+    // 恢复上次旧主简历备份
+    document.getElementById('btnRestoreMasterBackup')?.addEventListener('click', async () => {
+      if (!confirm('确认恢复到上次应用前的旧版主简历吗？')) return;
+      try {
+        const { master } = await api('/api/master/restore-backup', { method: 'POST' });
+        state.master = master;
+        if (state.activeDocId !== 'master') await switchDocumentTab('master');
+        else if (master?.html) loadHtmlIntoCanvas(master.html, master.theme);
+        renderWorkspaceBar();
+        showToast('✅ 已恢复到上次备份的旧版主简历');
+      } catch (err) {
+        showToast(`恢复失败：${err.message}`);
+      }
+    });
+
+    renderMbBlueprint();
+  }
+
   // ===== 7. 高清 PNG 长图导出（方便 BOSS 直聘直接发图） =====
   async function exportHdPng() {
     if (typeof window.html2canvas !== 'function') {
@@ -3369,21 +4368,25 @@
     initToolbarDropdowns();
     mountWorkspaceBar();
     mountDrawer();
+    bindMasterBuilderEvents();
     try {
-      const [cfgRes, masterRes, kbRes, gsRes] = await Promise.all([
+      const [cfgRes, masterRes, kbRes, gsRes, bkRes] = await Promise.all([
         api('/api/config'),
         api('/api/master'),
         api('/api/knowledge'),
-        api('/api/golden-set')
+        api('/api/golden-set'),
+        api('/api/master/backup')
       ]);
       state.config = cfgRes.config;
       state.defaultPrompts = cfgRes.defaultPrompts || {};
       state.master = masterRes.master;
       state.knowledge = kbRes.knowledge || { updatedAt: null, projects: [] };
       state.goldenSet = gsRes.goldenSet || { updatedAt: null, samples: [] };
+      state.masterBackup = { hasBackup: Boolean(bkRes?.hasBackup), backedUpAt: bkRes?.backedUpAt || null };
       renderConfig();
       renderGoldenSetList();
       renderKnowledgeList();
+      renderMasterBuilderOptions();
       updateMasterStatus();
 
       // 若后端尚未初始化主简历，自动把当前画布存为初始主简历底稿；若已有主简历，优先载入主简历
